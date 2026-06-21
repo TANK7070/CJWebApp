@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.083''Test</title>
+    <title>SmartEPS v1.084'</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -488,7 +488,7 @@ function valLimtGrcT(input) {
             <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
                 <button type="button" id="ParamDft" style="background-color: #698c8f; color: white;">Valeurs par Défaut</button>
                 <button type="button" id="Annul" onclick="showTab('import')" style="background-color: #f88282; color: white;">Annuler</button>
-                <button type="button" id="OK" style="background-color: #27ae60; color: white; padding: 8px 25px; font-weight: bold;">Valider (OK)</button>
+                <button type="button" id="OK" style="background-color: #27ae60; color: white; padding: 8px 25px; font-weight: bold;" onclick="showTab('import')">Valider (OK)</button>
             </div>
 
         </div>
@@ -1038,6 +1038,41 @@ function saveSettingsField(key, value) {
     appSettings[key] = value;
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
     checkFirstUse();
+
+    // Si un paramètre d'assiduité change, recalculer les notes déjà saisies
+    if (['ValA', 'ValT', 'GrcT'].includes(key)) {
+        recalculateAllBehaviorGrades();
+    }
+}
+
+// Recalcule la note d'assiduité (et la note finale) de tous les élèves,
+// toutes classes et disciplines confondues, après un changement de ValA/ValT/GrcT
+function recalculateAllBehaviorGrades() {
+    const savedClass = currentClass;
+    const savedDisc = currentDisc;
+
+    for (const className in classesDB) {
+        currentClass = className;
+        const students = classesDB[className].students || [];
+        students.forEach((student, idx) => {
+            for (const discKey in (student.grades || {})) {
+                currentDisc = discKey;
+                if (student.grades[discKey]?.s) {
+                    calculateBehavior(idx);
+                    calculateFinalGrade(idx);
+                }
+            }
+        });
+    }
+
+    currentClass = savedClass;
+    currentDisc = savedDisc;
+    save();
+
+    // Rafraîchir l'affichage si on est sur la grille du cycle
+    if (currentClass && currentDisc && document.getElementById('sec-cycle')?.classList.contains('active')) {
+        openCycle(currentDisc);
+    }
 }
 
 // Un utilisateur est considéré "configuré" si Professeur/User ET Doti sont renseignés
@@ -1355,6 +1390,29 @@ function getInitialCompValue(className) {
     return 0;
 }
 
+// Table de correspondance entre l'index stocké par les <select> ValA/ValT
+// et la valeur de pénalité réelle (en points)
+const PENALITE_VALEURS = {
+    "1": 0.25, "2": 0.3, "3": 0.33, "4": 0.37,
+    "5": 0.4,  "6": 0.5, "7": 0.6,  "8": 0.66, "9": 0.8
+};
+
+// Lit la pénalité configurée pour "A" (Absence) dans les Paramètres, 0,5 par défaut
+function getPenaliteA() {
+    return PENALITE_VALEURS[appSettings.ValA] ?? 0.5;
+}
+
+// Lit la pénalité configurée pour "T" (présence sans tenue) dans les Paramètres, 0,5 par défaut
+function getPenaliteT() {
+    return PENALITE_VALEURS[appSettings.ValT] ?? 0.5;
+}
+
+// Lit le seuil de grâce pour "T" dans les Paramètres, 2 par défaut
+function getSeuilGraceT() {
+    const v = parseInt(appSettings.GrcT, 10);
+    return isNaN(v) ? 2 : v;
+}
+
 function calculateBehavior(studentIdx) {
     const cl = classesDB[currentClass];
     const s = cl.students[studentIdx];
@@ -1363,9 +1421,13 @@ function calculateBehavior(studentIdx) {
     let baseComp = getInitialCompValue(currentClass);
     const countA = grades.filter(val => val === 'A').length;
     const countT = grades.filter(val => val === 'T').length;
-    
-    let malusA = countA * 0.5;
-    let malusT = countT > 2 ? (countT - 2) * 0.5 : 0;
+
+    const penaliteA = getPenaliteA();
+    const penaliteT = getPenaliteT();
+    const seuilGraceT = getSeuilGraceT();
+
+    let malusA = countA * penaliteA;
+    let malusT = countT > seuilGraceT ? (countT - seuilGraceT) * penaliteT : 0;
     
     let finalComp = Math.max(0, baseComp - malusA - malusT);
     s.grades[currentDisc].c[0] = finalComp; 
