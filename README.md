@@ -64,4 +64,5 @@
 	* enregistrer le profil avec ses paramètres dans la sauvegarde Excel
 
 1.084	:
-	integrer les valeurs A, T et GrcT des paramètres dans le mode de calcule d'assiduité
+	*integrer les valeurs A, T et GrcT des paramètres dans le mode de calcule d'assiduité
+	*nombre de séances dans les cycles selon la valeur dans Paramètres
