@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.084'</title>
+    <title>SmartEPS v1.084''</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -913,12 +913,23 @@ function openClass(name) {
     showTab("classe");
 }
 
+// Redimensionne un tableau à la taille cible, sans perdre les valeurs existantes
+function _resizeArray(arr, size, fill = "") {
+    if (!Array.isArray(arr)) return Array(size).fill(fill);
+    if (arr.length === size) return arr;
+    if (arr.length < size) return arr.concat(Array(size - arr.length).fill(fill));
+    return arr.slice(0, size); // réduction : tronque (les données au-delà sont conservées en mémoire le temps de la session, mais non affichées)
+}
+
 function openCycle(disc) {
     currentDisc = disc;
     const cl = classesDB[currentClass];
     document.getElementById("cycle-title").innerText = `${currentClass} - ${disc}`;
-    
-    if(!cl.cycleDates[disc]) cl.cycleDates[disc] = Array(12).fill("");
+
+    const nbrSeances = getNbrSeances();
+
+    if(!cl.cycleDates[disc]) cl.cycleDates[disc] = Array(nbrSeances).fill("");
+    cl.cycleDates[disc] = _resizeArray(cl.cycleDates[disc], nbrSeances);
     const dates = cl.cycleDates[disc];
 
     const thead = document.querySelector("#cycle-table thead");
@@ -927,12 +938,12 @@ function openCycle(disc) {
             <th rowspan="3">N°</th>
             <th rowspan="3" class="col-nom" style="background-color:#6c5ce7">Nom & Prénom</th>
             <th rowspan="3">Sx</th>
-            <th colspan="12" style="background:#5f27cd">Séances</th>
+            <th colspan="${nbrSeances}" style="background:#5f27cd">Séances</th>
             <th colspan="4" style="background:#222f3e">Evaluation</th>
             <th rowspan="3" style="background:#10ac84">Note Finale</th>
         </tr>
         <tr>
-            ${Array.from({length:12}, (_,i)=>`<th class="th-date" onclick="showTab('obs'); renderObservationGrid();" style="cursor:pointer" title="Voir les observations">S${i+1}</th>`).join('')}
+            ${Array.from({length:nbrSeances}, (_,i)=>`<th class="th-date" onclick="showTab('obs'); renderObservationGrid();" style="cursor:pointer" title="Voir les observations">S${i+1}</th>`).join('')}
             <th rowspan="2" style="background:#222f3e">Comp.</th>
             <th rowspan="2" style="background:#222f3e">Con.</th>
             <th rowspan="2" style="background:#222f3e">C. Mot.</th>
@@ -945,8 +956,9 @@ function openCycle(disc) {
 
     const tbody = document.getElementById("cycle-body");
     tbody.innerHTML = cl.students.map((s, i) => {
-        if(!s.grades[disc]) s.grades[disc] = { s: Array(12).fill(""), c: Array(4).fill(""), f: "" };
-        
+        if(!s.grades[disc]) s.grades[disc] = { s: Array(nbrSeances).fill(""), c: Array(4).fill(""), f: "" };
+        s.grades[disc].s = _resizeArray(s.grades[disc].s, nbrSeances);
+
         const g = s.grades[disc];
         g.c[0] = calculateBehavior(i);
         const hMotVal = g.c[3] || ""; 
@@ -1042,6 +1054,12 @@ function saveSettingsField(key, value) {
     // Si un paramètre d'assiduité change, recalculer les notes déjà saisies
     if (['ValA', 'ValT', 'GrcT'].includes(key)) {
         recalculateAllBehaviorGrades();
+    }
+
+    // Si le nombre de séances change, rafraîchir immédiatement la grille du cycle si affichée
+    if (key === 'NbrSCyl' && currentClass && currentDisc &&
+        document.getElementById('sec-cycle')?.classList.contains('active')) {
+        openCycle(currentDisc);
     }
 }
 
@@ -1287,7 +1305,7 @@ function updateDate(seanceIdx, dateValue) {
                 // Mise à jour DOM ciblée
                 const row = document.querySelector(`#cycle-body tr:nth-child(${sIdx + 1})`);
                 if (row) {
-                    const cell = row.querySelector(`td:nth-child(${seanceIdx + 4}) input`);
+                    const cell = row.querySelector(`td:nth-child(${seanceIdx + 4}) input`); // 3 colonnes fixes (N°, Nom, Sx) + 1-index
                     if (cell) { cell.value = "P"; cell.setAttribute('value', 'P'); }
                 }
             }
@@ -1334,9 +1352,11 @@ function setStatus(val) {
     save();
 
     // Mettre à jour comp et note finale dans la ligne
+    // Position de "Comp." = 3 colonnes fixes (N°, Nom, Sx) + nbr de séances + 1
+    const compColIdx = 3 + getNbrSeances() + 1;
     const row = document.querySelector(`#cycle-body tr:nth-child(${studentIdx + 1})`);
     if (row) {
-        const compInput = row.querySelector('td:nth-child(16) input');
+        const compInput = row.querySelector(`td:nth-child(${compColIdx}) input`);
         if (compInput) compInput.value = newComp;
         const finalInput = row.querySelector('td:last-child input');
         if (finalInput) finalInput.value = g.f || "";
@@ -1371,12 +1391,12 @@ function updateScore(si, t, s, v) {
     save();
 
     // Mise à jour ciblée des cellules sans reconstruire toute la table
+    // Position de "Comp." = 3 colonnes fixes (N°, Nom, Sx) + nbr de séances + 1
+    const compColIdx = 3 + getNbrSeances() + 1;
     const row = document.querySelector(`#cycle-body tr:nth-child(${si + 1})`);
     if (row) {
-        // Mettre à jour la note de comportement (colonne Comp.)
-        const compInput = row.querySelector('td:nth-child(16) input');
+        const compInput = row.querySelector(`td:nth-child(${compColIdx}) input`);
         if (compInput) compInput.value = newComp;
-        // Mettre à jour la note finale
         const finalInput = row.querySelector('td:last-child input');
         if (finalInput) finalInput.value = newFinal;
     }
@@ -1396,6 +1416,15 @@ const PENALITE_VALEURS = {
     "1": 0.25, "2": 0.3, "3": 0.33, "4": 0.37,
     "5": 0.4,  "6": 0.5, "7": 0.6,  "8": 0.66, "9": 0.8
 };
+
+// Table de correspondance entre l'index stocké par le <select> NbrSCyl
+// et le nombre réel de séances du cycle
+const NBR_SEANCES_VALEURS = { "1": 6, "2": 8, "3": 10, "4": 12 };
+
+// Lit le nombre de séances configuré dans les Paramètres, 12 par défaut
+function getNbrSeances() {
+    return NBR_SEANCES_VALEURS[appSettings.NbrSCyl] ?? 12;
+}
 
 // Lit la pénalité configurée pour "A" (Absence) dans les Paramètres, 0,5 par défaut
 function getPenaliteA() {
@@ -1581,6 +1610,7 @@ async function saveToExcel(forceNewFile = false) {
 
     const wb = XLSX.utils.book_new();
     const disciplines = Object.keys(OBSERVATION_DATA);
+    const nbrS = getNbrSeances(); // nombre de séances/cycle, configurable (Paramètres > NbrSCyl)
 
     // ==========================================
     // 1. GENERATION DES FEUILLES DE CLASSES (INCHANGÉ)
@@ -1606,24 +1636,24 @@ async function saveToExcel(forceNewFile = false) {
                               discKey.toUpperCase().includes("SPORT.CO");
             
             const perfFieldsCount = isSportCo ? 0 : (discConfig.fields.filter(f => f.startsWith('p')).length || 3);
-            const totalDiscCols = 12 + 4 + 1 + (isSportCo ? 0 : (perfFieldsCount + 2)); 
+            const totalDiscCols = nbrS + 4 + 1 + (isSportCo ? 0 : (perfFieldsCount + 2)); 
 
             row1.push(discConfig.title);
             for (let m = 1; m < totalDiscCols; m++) row1.push("");
             merges.push({ s: { r: 0, c: currentColIdx }, e: { r: 0, c: currentColIdx + totalDiscCols - 1 } });
 
-            for (let s = 1; s <= 12; s++) row2.push(`S${s}`);
+            for (let s = 1; s <= nbrS; s++) row2.push(`S${s}`);
             row2.push("Evaluation Cycle"); for(let m=1; m<4; m++) row2.push(""); 
-            merges.push({ s: { r: 1, c: currentColIdx + 12 }, e: { r: 1, c: currentColIdx + 15 } });
+            merges.push({ s: { r: 1, c: currentColIdx + nbrS }, e: { r: 1, c: currentColIdx + nbrS + 3 } });
             row2.push(""); 
             
             if (!isSportCo) {
                 row2.push("Performances Terrain"); for(let m=1; m<(perfFieldsCount + 2); m++) row2.push("");
-                merges.push({ s: { r: 1, c: currentColIdx + 17 }, e: { r: 1, c: currentColIdx + 17 + perfFieldsCount + 1 } });
+                merges.push({ s: { r: 1, c: currentColIdx + nbrS + 5 }, e: { r: 1, c: currentColIdx + nbrS + 5 + perfFieldsCount + 1 } });
             }
 
             const targetDates = (classesDB[className].cycleDates && classesDB[className].cycleDates[discKey]) ? classesDB[className].cycleDates[discKey] : null;
-            for (let s = 1; s <= 12; s++) {
+            for (let s = 1; s <= nbrS; s++) {
                 const dateVal = targetDates ? (targetDates[s - 1] || "") : "";
                 row3.push(dateVal); 
             }
@@ -1651,7 +1681,7 @@ async function saveToExcel(forceNewFile = false) {
                                   discKey.toUpperCase().includes("VOLLEY") || 
                                   discKey.toUpperCase().includes("SPORT.CO");
 
-                for (let s = 0; s < 12; s++) rowData.push(g.s?.[s] || "");
+                for (let s = 0; s < nbrS; s++) rowData.push(g.s?.[s] || "");
 
                 rowData.push(
                     (g.c?.[0] !== undefined && g.c[0] !== "") ? g.c[0] : "",
