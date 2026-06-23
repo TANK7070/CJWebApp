@@ -66,3 +66,10 @@
 1.084	:
 	*integrer les valeurs A, T et GrcT des paramètres dans le mode de calcule d'assiduité
 	*nombre de séances dans les cycles selon la valeur dans Paramètres
+
+1.085	:
+	*nom d'utilisateur dans titre du ficher de sauvegarde
+	*colonne moyenne générale et appreciation dans "Classe"
+	
+	
+
