@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.085''</title>
+    <title>SmartEPS v1.085'''</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -894,28 +894,44 @@ function openClass(name) {
             }
         }).join("");
  
-        // Moyenne générale : moyenne des notes finales des disciplines jouées
-        const finalGrades = disciplines
-            .map(disc => s.grades?.[disc]?.f)
-            .filter(f => f !== undefined && f !== "" && f !== null && !isNaN(parseFloat(f)))
-            .map(f => parseFloat(f));
-        const moyenneGen = finalGrades.length > 0
-            ? (finalGrades.reduce((a, b) => a + b, 0) / finalGrades.length).toFixed(2)
-            : "---";
- 
-        // Appréciation selon la moyenne générale
-        const appreciation = (() => {
-            if (moyenneGen === "---") return "---";
-            const m = parseFloat(moyenneGen);
-            if (m >= 18) return "Excellent";
-            if (m >= 16) return "Très Bien";
-            if (m >= 14) return "Bon travail";
-            if (m >= 12) return "Passable";
-            if (m >= 10) return "Travail superficiel";
-            if (m >= 8) return "Insuffisant";
-            if (m >=5) return "Absence récurrente";
-            return "Absent-e-";
-        })();
+        // --- LOGIQUE MODIFIÉE POUR ÉLÈVE DISPENSÉ (D) ---
+        let moyenneGen;
+        let appreciation;
+
+        if (s.index === "D") {
+            // Si l'élève est dispensé, on ignore le calcul et on affecte les valeurs cibles
+            moyenneGen = "---";
+            appreciation = "Disp.";
+        } else if (s.index === "?") {
+            // Si l'élève est dispensé, on ignore le calcul et on affecte les valeurs cibles
+            moyenneGen = "Sx?";
+            appreciation = "Sx?";
+
+        } else {
+            // Sinon, comportement normal : calcul de la moyenne générale
+            const finalGrades = disciplines
+                .map(disc => s.grades?.[disc]?.f)
+                .filter(f => f !== undefined && f !== "" && f !== null && !isNaN(parseFloat(f)))
+                .map(f => parseFloat(f));
+                
+            moyenneGen = finalGrades.length > 0
+                ? (finalGrades.reduce((a, b) => a + b, 0) / finalGrades.length).toFixed(2)
+                : "---";
+     
+            // Attribution de l'appréciation selon la moyenne générale calculée
+            appreciation = (() => {
+                if (moyenneGen === "---") return "---";
+                const m = parseFloat(moyenneGen);
+                if (m >= 18) return "Excellent";
+                if (m >= 16) return "Très Bien";
+                if (m >= 14) return "Bon travail";
+                if (m >= 12) return "Passable";
+                if (m >= 10) return "Travail superficiel";
+                if (m >= 8) return "Insuffisant";
+                if (m >= 5) return "Absence récurrente";
+                return "Absent-e-";
+            })();
+        }
  
         return `
             <tr class="bg-row-${s.index}">
@@ -1632,6 +1648,15 @@ function calculateBehavior(studentIdx) {
 function calculateFinalGrade(studentIdx) {
     const s = classesDB[currentClass].students[studentIdx];
     const g = s.grades[currentDisc];
+    
+    // Disp. si l'élève est "D"
+    if (s.index === "D") {
+        g.f = "Disp.";
+        return g.f;
+    } else if (s.index === "?") {
+        g.f = "--";
+        return g.f;
+    }
     
     const comp = parseFloat(g.c[0] || 0); 
     const con = parseFloat(g.c[1] || 0);
