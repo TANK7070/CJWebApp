@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.084''</title>
+    <title>SmartEPS v1.085''</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -77,7 +77,7 @@
         /* COULEURS LIGNES LISTE CLASSE*/
         .bg-row-G { background-color: rgba(53, 150, 214, 0.30) !important; } 
         .bg-row-F { background-color: rgba(232, 67, 147, 0.30) !important; } 
-        .bg-row-D { background-color: rgba(40, 40, 40, 0.30) !important; }  
+        .bg-row-D { background-color: rgb(40, 40, 40, 0.30) !important; }  
         .bg-row-\? { background-color: rgba(150, 150, 150, 0.05) !important; }
 
         select, .input-cell{border:none;background:transparent;font-family:inherit;font-weight:bold;font-size:14px;width:100%;text-align:center}
@@ -326,6 +326,8 @@
                         <th style="background-color: #3665ff; cursor:pointer;" onclick="openCycle('Volleyball 🏐')">VB</th>
                         <th style="background-color: #8e3dbd; cursor:pointer;" onclick="openCycle('Gymnastique 🤸🏽‍♀️')">Gym</th>
                         <th style="background-color: #797979; cursor:pointer;" onclick="openCycle('Sport.Co')">Sprt.Co</th>
+                        <th style="background-color: var(--main-color2)">Myn Gnrl.</th>
+                        <th style="background-color: var(--main-color2)">Appréciation</th>
                     </tr>
                 </thead>
                 <tbody id="students-table"></tbody>
@@ -859,7 +861,7 @@ function openClass(name) {
         showTab('import');
         return;
     }
-
+ 
     if (name) currentClass = name;
     
     const cl = classesDB[currentClass];
@@ -877,21 +879,44 @@ function openClass(name) {
         'Gymnastique 🤸🏽‍♀️', 
         'Sport.Co'
     ];
-
+ 
     const tbody = document.getElementById("students-table");
     
     tbody.innerHTML = cl.students.map((s, i) => {
         const notesCells = disciplines.map(disc => {
             const gradeObj = s.grades && s.grades[disc];
             const finalGrade = (gradeObj && gradeObj.f !== undefined && gradeObj.f !== "") ? gradeObj.f : null;
-
+ 
             if (finalGrade !== null) {
                 return `<td style="color:#6c5ce7; font-weight:bold; font-size:13px">${finalGrade}</td>`;
             } else {
                 return `<td style="color:#bbb; font-size:10px">---</td>`;
             }
         }).join("");
-
+ 
+        // Moyenne générale : moyenne des notes finales des disciplines jouées
+        const finalGrades = disciplines
+            .map(disc => s.grades?.[disc]?.f)
+            .filter(f => f !== undefined && f !== "" && f !== null && !isNaN(parseFloat(f)))
+            .map(f => parseFloat(f));
+        const moyenneGen = finalGrades.length > 0
+            ? (finalGrades.reduce((a, b) => a + b, 0) / finalGrades.length).toFixed(2)
+            : "---";
+ 
+        // Appréciation selon la moyenne générale
+        const appreciation = (() => {
+            if (moyenneGen === "---") return "---";
+            const m = parseFloat(moyenneGen);
+            if (m >= 18) return "Excellent";
+            if (m >= 16) return "Très Bien";
+            if (m >= 14) return "Bon travail";
+            if (m >= 12) return "Passable";
+            if (m >= 10) return "Travail superficiel";
+            if (m >= 8) return "Insuffisant";
+            if (m >=5) return "Absence récurrente";
+            return "Absent-e-";
+        })();
+ 
         return `
             <tr class="bg-row-${s.index}">
                 <td>${i+1}</td>
@@ -906,12 +931,15 @@ function openClass(name) {
                     </select>
                 </td>
                 ${notesCells}
+                <td style="font-weight:bold; font-size:13px">${moyenneGen}</td>
+                <td style="font-size:12px">${appreciation}</td>
             </tr>
         `;
     }).join("");
-
+ 
     showTab("classe");
 }
+
 
 // Redimensionne un tableau à la taille cible, sans perdre les valeurs existantes
 function _resizeArray(arr, size, fill = "") {
@@ -1274,6 +1302,144 @@ function openClassImport() {
         return;
     }
     document.getElementById('file-input').click();
+}
+
+async function enregistrerEtCloisonnerProfil() {
+    const inputUser = document.getElementById("User");
+    const inputDoti = document.getElementById("doti");
+
+    if (!inputUser || !inputDoti) return;
+
+    let nomSaisi  = inputUser.value.trim().replace(/[^a-zA-Z0-9_ ÀÁÂÃÄÅàáâãäåÒÓÔÕÖØòóôõöøÈÉÊËèéêëÇçÌÍÎÏìíîï]/g, "");
+    let dotiSaisi = inputDoti.value.trim();
+
+    if (nomSaisi === "" || dotiSaisi === "") {
+        alert("Action requise : Le nom du professeur et le numéro de DOTI sont obligatoires pour initialiser votre espace de données.");
+        showTab("settings");
+        return;
+    }
+
+    let profs = JSON.parse(localStorage.getItem(PROF_LIST_KEY) || "[]");
+    let existeDeja = profs.find(p => p.doti === dotiSaisi);
+
+    // Capture complète de toutes les configurations de l'onglet paramètres
+    const configEnseignant = {
+        etablissement: document.getElementById("Etblsmnt")?.value || "",
+        piste: document.getElementById("Piste")?.value || "200",
+        testVMA: document.getElementById("TstVMA")?.value || "1",
+        nbrSSeanceCycle: document.getElementById("NbrSCyl")?.value || "8",
+        valeurA: document.getElementById("ValA")?.value || "0.5",
+        valeurT: document.getElementById("ValT")?.value || "0.25",
+        graceT: document.getElementById("GrcT")?.value || "0",
+        nbrGroupes: document.getElementById("NbrGCls")?.value || "2",
+        grp1: document.getElementById("Grp1")?.value || "A",
+        grp2: document.getElementById("Grp2")?.value || "B",
+        grp3: document.getElementById("Grp3")?.value || "C",
+        grp4: document.getElementById("Grp4")?.value || "D"
+    };
+
+    // Cas A : Le profil est déjà actif, il s'agit d'une mise à jour (Nom ou paramètres)
+    if (currentProfDoti === dotiSaisi) {
+        let profObj = profs.find(p => p.doti === dotiSaisi);
+        profObj.nom = nomSaisi;
+        localStorage.setItem(PROF_LIST_KEY, JSON.stringify(profs));
+
+        // Enregistrement des configurations à l'intérieur de l'espace cloisonné du prof
+        classesDB._config = configEnseignant;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(classesDB));
+        _isDirty = true; 
+
+        alert("Configurations et profil mis à jour avec succès !");
+        verifierEtChargerProfil();
+        if (typeof _updateAllButtons === "function") _updateAllButtons();
+        return;
+    }
+
+    // Cas B : Le DOTI saisi appartient à un autre compte existant (Bascule de session)
+    if (existeDeja) {
+        let basculer = confirm(`Le DOTI n° ${dotiSaisi} appartient déjà à "${existeDeja.nom}".\nVoulez-vous charger la session et les classes de ce professeur ?`);
+        if (basculer) {
+            currentProfDoti = dotiSaisi;
+            localStorage.setItem("smarteps_active_doti", dotiSaisi);
+            await rechargerSessionProfesseurParDoti();
+        }
+        return;
+    }
+
+    // Cas C : Création d'un tout nouveau profil
+    let messageValidation = `Voulez-vous créer le profil enseignant pour M. ${nomSaisi} (DOTI: ${dotiSaisi}) ?`;
+    if (currentProfDoti === "" && Object.keys(classesDB).length > 0) {
+        messageValidation = `Voulez-vous créer ce profil et lui assigner les classes actuellement ouvertes sur ce navigateur ?`;
+    }
+
+    if (!confirm(messageValidation)) return;
+
+    profs.push({ doti: dotiSaisi, nom: nomSaisi });
+    localStorage.setItem(PROF_LIST_KEY, JSON.stringify(profs));
+
+    // Attachement de la configuration à l'univers de données créé
+    classesDB._config = configEnseignant;
+    
+    const nouvelleKey = getProfStorageKey(dotiSaisi);
+    localStorage.setItem(nouvelleKey, JSON.stringify(classesDB));
+
+    currentProfDoti = dotiSaisi;
+    localStorage.setItem("smarteps_active_doti", dotiSaisi);
+
+    await rechargerSessionProfesseurParDoti();
+    alert(`Votre espace SmartEPS personnalisé a été créé avec succès, M. ${nomSaisi} !`);
+}
+
+function verifierEtChargerProfil() {
+    const inputUser = document.getElementById("User");
+    const inputDoti = document.getElementById("doti");
+    const headerUserBadge = document.getElementById("user-display-header");
+
+    let profs = JSON.parse(localStorage.getItem(PROF_LIST_KEY) || "[]");
+    let profActif = profs.find(p => p.doti === currentProfDoti);
+
+    if (profActif) {
+        if (inputUser) inputUser.value = profActif.nom;
+        if (inputDoti) {
+            inputDoti.value = profActif.doti;
+            inputDoti.disabled = true; 
+            inputDoti.style.backgroundColor = "#e9ecef";
+            inputDoti.style.cursor = "not-allowed";
+        }
+        if (headerUserBadge) headerUserBadge.innerHTML = `🧑🏼‍🏫 M. ${profActif.nom}`;
+
+        // Récupération et application des configurations isolées de l'enseignant connecté
+        const conf = classesDB._config || {};
+        
+        if (document.getElementById("Etblsmnt")) document.getElementById("Etblsmnt").value = conf.etablissement || "";
+        if (document.getElementById("Piste"))      document.getElementById("Piste").value = conf.piste || "200";
+        if (document.getElementById("TstVMA"))     document.getElementById("TstVMA").value = conf.testVMA || "1";
+        if (document.getElementById("NbrSCyl"))    document.getElementById("NbrSCyl").value = conf.nbrSSeanceCycle || "8";
+        if (document.getElementById("ValA"))       document.getElementById("ValA").value = conf.valeurA || "0.5";
+        if (document.getElementById("ValT"))       document.getElementById("ValT").value = conf.valeurT || "0.25";
+        if (document.getElementById("GrcT"))       document.getElementById("GrcT").value = conf.graceT || "0";
+        if (document.getElementById("NbrGCls"))    document.getElementById("NbrGCls").value = conf.nbrGroupes || "2";
+        if (document.getElementById("Grp1"))      document.getElementById("Grp1").value = conf.grp1 || "A";
+        if (document.getElementById("Grp2"))      document.getElementById("Grp2").value = conf.grp2 || "B";
+        if (document.getElementById("Grp3"))      document.getElementById("Grp3").value = conf.grp3 || "C";
+        if (document.getElementById("Grp4"))      document.getElementById("Grp4").value = conf.grp4 || "D";
+
+        if (typeof renderClasses === "function") renderClasses();
+    } else {
+        if (headerUserBadge) headerUserBadge.innerHTML = `🧑🏼‍🏫 Invité`;
+        if (inputUser) inputUser.value = "";
+        if (inputDoti) {
+            inputDoti.value = "";
+            inputDoti.disabled = false;
+            inputDoti.style.backgroundColor = "#fff";
+            inputDoti.style.cursor = "text";
+        }
+
+        setTimeout(() => {
+            alert("👋 Bienvenue sur SmartEPS ! Pour commencer à l'utiliser, veuillez configurer votre Profil Enseignant (Nom et DOTI obligatoires) dans l'onglet Paramètres.");
+            showTab("settings");
+        }, 300);
+    }
 }
 
 function showTab(id) {
@@ -1741,7 +1907,8 @@ async function saveToExcel(forceNewFile = false) {
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0];
         const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
-        const fileName = `SmartEPS_Copie_${dateStr}_${timeStr}.xlsx`;
+        const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
+        const fileName = `SmartEPS_${userName}_Copie_${dateStr}_${timeStr}.xlsx`;
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -1781,8 +1948,9 @@ async function saveToExcel(forceNewFile = false) {
                 try {
                     const now = new Date();
                     const dateStr = now.toISOString().split('T')[0];
+                    const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
                     const options = {
-                        suggestedName: `SmartEPS_Backup_${dateStr}.xlsx`,
+                        suggestedName: `SmartEPS_${userName}_Backup_${dateStr}.xlsx`,
                         types: [{ description: 'Classeur Excel SmartEPS', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }]
                     };
                     const newHandle = await window.showSaveFilePicker(options);
@@ -1806,7 +1974,8 @@ async function saveToExcel(forceNewFile = false) {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `SmartEPS_Backup_${dateStr}.xlsx`;
+                const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
+                a.download = `SmartEPS_${userName}_Backup_${dateStr}.xlsx`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
