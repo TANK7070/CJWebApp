@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.085</title>
+    <title>SmartEPS v1.086'</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1021,7 +1021,7 @@ function openCycle(disc) {
             `).join('')}
             
             <td><input class="input-cell" value="${g.c[0]}" readonly style="background:rgba(0,0,0,0.05); font-weight:bold;"></td>
-            <td><input class="input-cell" value="${g.c[1] || ""}" inputmode="decimal" onchange="updateScore(${i},'c',1,this.value)"></td>
+            <td><input class="input-cell" value="${g.c[1] || ""}" inputmode="decimal" onchange="validateAndUpdateCon(${i}, this)"></td>
             <td><input class="input-cell" value="${g.c[2] || ""}" inputmode="decimal" onchange="updateScore(${i},'c',2,this.value)"></td>
             
             <td><input class="input-cell" value="${hMotVal}" readonly style="background:#e3f2fd; font-weight:bold;" title="Note calculée depuis l'observation"></td>
@@ -1033,6 +1033,30 @@ function openCycle(disc) {
     }).join("");
     
     showTab("cycle");
+}
+// Validation note conceptuel ente 0 et 3 en remettant à 3 si superieur à 3
+function validateAndUpdateCon(studentIdx, inputElement) {
+    let rawValue = inputElement.value.trim().replace(',', '.'); // accepte virgule
+    if (rawValue === "") {
+        // Saisie vide → on l'accepte et on met à jour
+        updateScore(studentIdx, 'c', 1, "");
+        return;
+    }
+    let numericValue = parseFloat(rawValue);
+    if (isNaN(numericValue)) {
+        alert("Veuillez saisir un nombre valide (ou laissez vide).");
+        // On restaure l'ancienne valeur stockée dans un dataset, si on veut.
+        // Sinon, on ne fait rien (la cellule conserve la valeur erronée, mais updateScore n'est pas appelée)
+        return;
+    }
+    // Borner entre 0 et 3
+    numericValue = Math.max(0, Math.min(3, numericValue));
+    // Arrondir à 2 décimales pour éviter les erreurs d'arrondi
+    numericValue = Math.round(numericValue * 100) / 100;
+    // Mettre à jour l'affichage
+    inputElement.value = numericValue;
+    // Appeler la mise à jour avec la valeur corrigée
+    updateScore(studentIdx, 'c', 1, String(numericValue));
 }
 
 // ============================================================
@@ -1659,7 +1683,8 @@ function calculateFinalGrade(studentIdx) {
     }
     
     const comp = parseFloat(g.c[0] || 0); 
-    const con = parseFloat(g.c[1] || 0);
+    // 🔒 SÉCURITÉ CONDUITE : Plafonné à 3 maximum dans le calcul
+    const con  = Math.min(3, parseFloat(g.c[1] || 0));
     const cMot = parseFloat(g.c[2] || 0);
     const hMot = parseFloat(g.c[3] || 0);
     
