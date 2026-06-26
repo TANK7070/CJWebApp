@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.085'''</title>
+    <title>SmartEPS v1.085</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -301,7 +301,7 @@
                 z-index: 50;
             }
         </style>
-        <img src="https://taoufikeps.wordpress.com/wp-content/uploads/2023/05/tb_triangle_2dtransp.png" style="width: 32px; height: 32px; vertical-align:middle; opacity:1;">
+        <a href="https://taoufikeps.wordpress.com/" target="_blank" rel="noopener noreferrer"><img src="https://taoufikeps.wordpress.com/wp-content/uploads/2023/05/tb_triangle_2dtransp.png" style="width: 32px; height: 32px; vertical-align:middle; opacity:1;"></a>
         ©Taoufik_2026.
         </footer>
     </div>
@@ -2317,6 +2317,11 @@ function calculSpecifiquePoids(studentObs, targetField, bestPerf, recordRef, not
 }
 
 function calculSpecifiqueDuree(studentObs, targetField, bestPerf, recordRef, noteMax) {
+    // --- VERROU DE SÉCURITÉ POUR ÉLÈVE DISPENSÉ (D) ---
+    if (studentObs.index === "D") {
+        studentObs[targetField] = "Di"; // Note de performance vide
+        return; // Arrêt immédiat du calcul
+    }
     if (bestPerf > 0 && recordRef > 0) {
         let noteCalculee = (recordRef / bestPerf) * noteMax;
         studentObs[targetField] = Math.min(noteMax, noteCalculee).toFixed(2);
@@ -2331,6 +2336,11 @@ function calculSpecifiqueSportsCoEtGym(studentObs, targetField, discConfig) {
 
 // L'aiguilleur de calculs par micro-fonctions autonomes
 function executerCalculNoteSpecifique(discipline, studentObs, targetField, bestPerf, recordRef, noteMax, discConfig) {
+    // 🔒 Si l'objet appartient à un élève dispensé (on vérifie l'index)
+    if (studentObs.index === "D") {
+        studentObs[targetField] = "Disp";
+        return;
+    }
     const d = discipline.toUpperCase();
     if (d.includes("VITESSE")) {
         calculSpecifiqueVitesse(studentObs, targetField, bestPerf, recordRef, noteMax);
@@ -2380,6 +2390,24 @@ function updateObsVal(studentIdx, field, val) {
     student.grades[currentDisc].obs[field] = cleanVal;
     const obs = student.grades[currentDisc].obs;
 
+    const targetNoteField = discConfig.fields.find(f => f.startsWith('Nt')) || "note";
+
+    // 🔒 1. VERROU DE SÉCURITÉ ABSOLU IMMÉDIAT POUR L'ÉLÈVE DISPENSÉ (D)
+    if (student.index === "D") {
+        obs.best = "";
+        obs[targetNoteField] = "D";
+        
+        if (!student.grades[currentDisc].c) student.grades[currentDisc].c = ["", "", "", ""];
+        student.grades[currentDisc].c[2] = "";       // Note C.Mot vide
+        student.grades[currentDisc].c[3] = "D";   // Note H.Mot forcée à "Disp"
+        
+        updateObsCells(studentIdx);
+        calculateFinalGrade(studentIdx);
+        save();
+        return; // Arrêt immédiat de la fonction pour bloquer toute cascade de calcul
+    }
+
+    // --- COMPORTEMENT NORMAL POUR LES AUTRES ÉLÈVES ---
     const perfs = discConfig.fields
         .filter(f => f.startsWith('p'))
         .map(f => parseFloat(obs[f]))
@@ -2389,7 +2417,6 @@ function updateObsVal(studentIdx, field, val) {
 
     let niveau = getNiveauFromName(currentClass);
     let noteMax = getHabMotMax(niveau);
-    const targetNoteField = discConfig.fields.find(f => f.startsWith('Nt')) || "note";
 
     const dUpper = currentDisc.toUpperCase();
     const isSportCo = dUpper.includes("BASKET") || dUpper.includes("HAND") || dUpper.includes("VOLLEY") || dUpper.includes("SPORT.CO");
@@ -2428,6 +2455,19 @@ function updateObsVal(studentIdx, field, val) {
                 if (getNiveauFromName(clName) !== niveau) continue;
                 classesDB[clName].students.forEach((st, idx) => {
                     if (clName === currentClass && idx === studentIdx) return; // déjà traité
+                    
+                    // 🔒 2. SÉCURITÉ DANS LA BOUCLE : Ignorer les autres élèves dispensés du niveau
+                    if (st.index === "D") {
+                        if (st.grades[currentDisc]) {
+                            if (!st.grades[currentDisc].obs) st.grades[currentDisc].obs = {};
+                            st.grades[currentDisc].obs[targetNoteField] = "D";
+                            if (!st.grades[currentDisc].c) st.grades[currentDisc].c = ["", "", "", ""];
+                            st.grades[currentDisc].c[3] = "D";
+                        }
+                        if (clName === currentClass) updateObsCells(idx);
+                        return;
+                    }
+
                     if (!st.grades[currentDisc]) return;
                     if (!st.grades[currentDisc].obs) st.grades[currentDisc].obs = {};
                     const stObs = st.grades[currentDisc].obs;
@@ -2451,6 +2491,7 @@ function updateObsVal(studentIdx, field, val) {
         }, 1000);
 
     } else {
+        // Cas des sports collectifs ou gymnastique (Saisie manuelle de la note d'habileté)
         if (obs[targetNoteField] !== undefined) {
             student.grades[currentDisc].c[3] = obs[targetNoteField];
         }
