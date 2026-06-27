@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.086'</title>
+    <title>SmartEPS v1.087</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -355,7 +355,7 @@
         </div>
         <div id="obs-content" class="table-container"></div>
     </div>
-    <div class="section" id="sec-settings">
+<div class="section" id="sec-settings">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
             <h2 id="settings-title" style="color:var(--main-color1); margin-bottom:2px">⚙️Paramètres</h2>
             <button class="btn-retour" onclick="showTab('import')">⬅Retour</button>
@@ -369,7 +369,7 @@
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                 <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white;">➕ Ajouter Nom/Prénom</button>
                 <button type="button" id="SupprPNom" style="background-color: #e74c3c; color: white;">🗑️ Supprimer Nom/Prénom</button>
-                <button type="button" id="Aprc" style="background-color: #2ecc71; color: white;">👁️ Aperçu Appréciation</button>
+                <button type="button" id="Aprc" style="background-color: #2ecc71; color: white;" onclick="showTab('appreciation')">👁️ Aperçu Appréciation</button>
                 <button type="button" id="CapSprt" style="background-color: #f39c12; color: white;">🏃‍♂️ ParamCapSprtv</button>
                 <button type="button" id="PPCT" style="background-color: #9b59b6; color: white;">📁 ProjPrev (PPCT)</button>
                 <button type="button" id="SprtCo" style="background-color: #34495e; color: white;">⚽ Sport Co</button>
@@ -449,7 +449,9 @@
         <label for="GrcT">Grc T :</label>
         <input type="number" id="GrcT" min="0" max="12" step="1" oninput="valLimtGrcT(this); saveSettingsField('GrcT', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
     </div>
+    
 </fieldset>
+
 
 <script>
 function valLimtGrcT(input) {
@@ -495,6 +497,72 @@ function valLimtGrcT(input) {
 
         </div>
     </div>
+<div class="section" id="sec-appreciation">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+        <h2 style="color:var(--main-color1); margin-bottom:2px">⚙️ Configuration des Appréciations</h2>
+        <button class="btn-retour" onclick="showTab('settings')">⬅ Retour</button>
+    </div>
+    
+    <div id="appreciation-content" style="padding: 5px; max-height: 75vh; overflow-y: auto;">
+        <fieldset style="padding:15px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+            <legend style="padding:0 10px; font-weight:bold; color:var(--main-color1);">📝 Seuils & Textes Automatiques</legend>
+            
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px; font-style: italic;">
+                Modifiez les textes ci-dessous. L'application calculera automatiquement l'appréciation des élèves sur le tableau de la classe en fonction de leur moyenne générale globale.
+            </p>
+
+            <div class="table-container">
+                <table style="width:100%; min-width:100%;">
+                    <thead>
+                        <tr style="background: var(--main-color1); color: white;">
+                            <th style="width: 25%; padding: 8px;">Moyenne Supérieure ou Égale à :</th>
+                            <th style="width: 75%; padding: 8px; text-align: left; padding-left: 15px;">Modèle d'appréciation automatique</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><b style="color:#27ae60; font-size:15px;">≥ 18</b></td>
+                            <td><input type="text" id="app-exc" value="Excellent" oninput="saveAppreciationThresholds()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; background:#f9fff9;"></td>
+                        </tr>
+                        <tr>
+                            <td><b style="color:#2ecc71; font-size:14px;">≥ 16</b></td>
+                            <td><input type="text" id="app-tb" value="Très Bien" oninput="saveAppreciationThresholds()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;"></td>
+                        </tr>
+                        <tr>
+                            <td><b style="color:#3498db; font-size:14px;">≥ 14</b></td>
+                            <td><input type="text" id="app-b" value="Bon travail" oninput="saveAppreciationThresholds()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;"></td>
+                        </tr>
+                        <tr>
+                            <td><b style="color:#9b59b6; font-size:14px;">≥ 12</b></td>
+                            <td><input type="text" id="app-p" value="Passable" oninput="saveAppreciationThresholds()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;"></td>
+                        </tr>
+                        <tr>
+                            <td><b style="color:#f39c12; font-size:14px;">≥ 10</b></td>
+                            <td><input type="text" id="app-sup" value="Travail superficiel" oninput="saveAppreciationThresholds()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;"></td>
+                        </tr>
+                        <tr>
+                            <td><b style="color:#e67e22; font-size:14px;">≥ 08</b></td>
+                            <td><input type="text" id="app-ins" value="Insuffisant" oninput="saveAppreciationThresholds()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;"></td>
+                        </tr>
+                        <tr>
+                            <td><b style="color:#e74c3c; font-size:14px;">≥ 05</b></td>
+                            <td><input type="text" id="app-abs-rec" value="Absence récurrente" oninput="saveAppreciationThresholds()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;"></td>
+                        </tr>
+                        <tr style="background: #fff5f5;">
+                            <td><b style="color:#c0392b; font-size:14px;">&lt; 05 / Absent</b></td>
+                            <td><input type="text" id="app-abs" value="Absent-e-" oninput="saveAppreciationThresholds()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; background:#fff0f0;"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
+                <button type="button" style="background-color: #34495e; color: white; padding: 6px 20px;" onclick="resetAppreciationDefaults()">🔄 Réinitialiser les textes</button>
+                <button type="button" style="background-color: #27ae60; color: white; padding: 6px 20px; margin-left: 10px;" onclick="saveAppreciationThresholds(false); showTab('settings')">✅ Valider</button>
+            </div>
+        </fieldset>
+    </div>
+</div>
 <div id="context-menu">
     <div class="menu-item" onclick="updateClass()">🔄 Mettre à jour (Excel-Massar)</div>
     <div class="menu-item delete" onclick="deleteClass()">🗑️ Supprimer la classe</div>
@@ -918,18 +986,19 @@ function openClass(name) {
                 ? (finalGrades.reduce((a, b) => a + b, 0) / finalGrades.length).toFixed(2)
                 : "---";
      
-            // Attribution de l'appréciation selon la moyenne générale calculée
+            // Attribution de l'appréciation depuis appSettings (personnalisée par profil)
             appreciation = (() => {
                 if (moyenneGen === "---") return "---";
                 const m = parseFloat(moyenneGen);
-                if (m >= 18) return "Excellent";
-                if (m >= 16) return "Très Bien";
-                if (m >= 14) return "Bon travail";
-                if (m >= 12) return "Passable";
-                if (m >= 10) return "Travail superficiel";
-                if (m >= 8) return "Insuffisant";
-                if (m >= 5) return "Absence récurrente";
-                return "Absent-e-";
+                const a = appSettings.appreciations || {};
+                if (m >= 18) return a.exc    || "Excellent";
+                if (m >= 16) return a.tb     || "Très Bien";
+                if (m >= 14) return a.b      || "Bon travail";
+                if (m >= 12) return a.p      || "Passable";
+                if (m >= 10) return a.sup    || "Travail superficiel";
+                if (m >= 8)  return a.ins    || "Insuffisant";
+                if (m >= 5)  return a.absRec || "Absence récurrente";
+                return a.abs || "Absent-e-";
             })();
         }
  
@@ -956,6 +1025,68 @@ function openClass(name) {
     showTab("classe");
 }
 
+
+// Appréciations par défaut
+function resetAppreciationDefaults() {
+    // Demande de confirmation par sécurité avant d'écraser les textes actuels
+    // if (!confirm("Voulez-vous restaurer les modèles d'appréciations par défaut ?")) {
+    //     return;
+    // }
+
+    // Association de chaque ID avec sa valeur par défaut
+    document.getElementById("app-exc").value = "Excellent";
+    document.getElementById("app-tb").value = "Très Bien";
+    document.getElementById("app-b").value = "Bon travail";
+    document.getElementById("app-p").value = "Passable";
+    document.getElementById("app-sup").value = "Travail superficiel";
+    document.getElementById("app-ins").value = "Insuffisant";
+    document.getElementById("app-abs-rec").value = "Absence récurrente";
+    
+    // Valeur par défaut pour la catégorie < 5 / Absents
+    document.getElementById("app-abs").value = "Absent-e-";
+
+    // Enregistrement immédiat des valeurs réinitialisées dans le stockage local (localStorage)
+    saveAppreciationThresholds();
+    
+    // Petit message de confirmation visuel
+    alert("Les appréciations par défaut ont été restaurées avec succès !");
+}
+
+// Fonction pour extraire les textes saisis à l'écran
+function getCustomAppreciations() {
+    return {
+        exc: document.getElementById("app-exc")?.value || "Excellent",
+        tb: document.getElementById("app-tb")?.value || "Très Bien",
+        b: document.getElementById("app-b")?.value || "Bon travail",
+        p: document.getElementById("app-p")?.value || "Passable",
+        sup: document.getElementById("app-sup")?.value || "Travail superficiel",
+        ins: document.getElementById("app-ins")?.value || "Insuffisant",
+        absRec: document.getElementById("app-abs-rec")?.value || "Absence récurrente",
+        abs: document.getElementById("app-abs")?.value || "Absent-e-"
+    };
+}
+// Sauvegarde les appréciations dans appSettings (profil actif) — même mécanisme que les autres paramètres
+function saveAppreciationThresholds(silent = true) {
+    appSettings.appreciations = getCustomAppreciations();
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
+    if (typeof registerCurrentUser === "function") registerCurrentUser();
+    if (!silent) alert("🎯 Paramètres des appréciations enregistrés avec succès !");
+}
+
+function loadAppreciationThresholds() {
+    const apps = appSettings.appreciations || null;
+
+    if (apps) {
+        if (apps.exc && document.getElementById("app-exc")) document.getElementById("app-exc").value = apps.exc;
+        if (apps.tb && document.getElementById("app-tb")) document.getElementById("app-tb").value = apps.tb;
+        if (apps.b && document.getElementById("app-b")) document.getElementById("app-b").value = apps.b;
+        if (apps.p && document.getElementById("app-p")) document.getElementById("app-p").value = apps.p;
+        if (apps.sup && document.getElementById("app-sup")) document.getElementById("app-sup").value = apps.sup;
+        if (apps.ins && document.getElementById("app-ins")) document.getElementById("app-ins").value = apps.ins;
+        if (apps.absRec && document.getElementById("app-abs-rec")) document.getElementById("app-abs-rec").value = apps.absRec;
+        if (apps.abs && document.getElementById("app-abs")) document.getElementById("app-abs").value = apps.abs;
+    }
+}
 
 // Redimensionne un tableau à la taille cible, sans perdre les valeurs existantes
 function _resizeArray(arr, size, fill = "") {
@@ -1104,6 +1235,7 @@ function loadSettingsToUI() {
         }
     });
     updateUserBadge();
+    loadAppreciationThresholds(); // recharge les appréciations du profil actif
 }
 
 // Met à jour le badge "🧑🏼‍🏫" du header avec le nom du professeur actif
@@ -2550,6 +2682,9 @@ document.getElementById("OK")?.addEventListener("click", function() {
 document.addEventListener("DOMContentLoaded", async function() {
     _isDirty = false;
     _updateAllButtons(); // affiche d'abord Lier/Importer par défaut
+
+    // À insérer dans votre fonction de démarrage ou juste après le chargement des profils :
+    loadAppreciationThresholds();
 
     // Charger les paramètres utilisateur et vérifier la première utilisation
     // Si aucun défaut n'a encore été appliqué (premier démarrage), les initialiser
