@@ -70,6 +70,14 @@
 1.085	:
 	*nom d'utilisateur dans titre du ficher de sauvegarde
 	*colonne moyenne générale et appreciation dans "Classe"
+	*ignorer moyenne et appréciation si D
+
+1.086	:
+	*limiter note conceptuel à 3
+
+1.087	:
+	*paramètres appréciations
+	*application des appréciations personnalisées
 	
 	
 
