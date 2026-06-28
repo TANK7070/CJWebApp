@@ -78,6 +78,6 @@
 1.087	:
 	*paramètres appréciations
 	*application des appréciations personnalisées
-	
-	
 
+1.088	:
+	*génération, remplissage et impression du feuille journal
