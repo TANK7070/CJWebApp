@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.087</title>
+    <title>SmartEPS v1.088</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -986,19 +986,18 @@ function openClass(name) {
                 ? (finalGrades.reduce((a, b) => a + b, 0) / finalGrades.length).toFixed(2)
                 : "---";
      
-            // Attribution de l'appréciation depuis appSettings (personnalisée par profil)
+            // Attribution de l'appréciation selon la moyenne générale calculée
             appreciation = (() => {
                 if (moyenneGen === "---") return "---";
                 const m = parseFloat(moyenneGen);
-                const a = appSettings.appreciations || {};
-                if (m >= 18) return a.exc    || "Excellent";
-                if (m >= 16) return a.tb     || "Très Bien";
-                if (m >= 14) return a.b      || "Bon travail";
-                if (m >= 12) return a.p      || "Passable";
-                if (m >= 10) return a.sup    || "Travail superficiel";
-                if (m >= 8)  return a.ins    || "Insuffisant";
-                if (m >= 5)  return a.absRec || "Absence récurrente";
-                return a.abs || "Absent-e-";
+                if (m >= 18) return "Excellent";
+                if (m >= 16) return "Très Bien";
+                if (m >= 14) return "Bon travail";
+                if (m >= 12) return "Passable";
+                if (m >= 10) return "Travail superficiel";
+                if (m >= 8) return "Insuffisant";
+                if (m >= 5) return "Absence récurrente";
+                return "Absent-e-";
             })();
         }
  
@@ -1065,17 +1064,44 @@ function getCustomAppreciations() {
         abs: document.getElementById("app-abs")?.value || "Absent-e-"
     };
 }
-// Sauvegarde les appréciations dans appSettings (profil actif) — même mécanisme que les autres paramètres
+// Fonction pour sauvegarder les appréciations dans les paramètres du profil actif
 function saveAppreciationThresholds(silent = true) {
-    appSettings.appreciations = getCustomAppreciations();
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
-    if (typeof registerCurrentUser === "function") registerCurrentUser();
-    if (!silent) alert("🎯 Paramètres des appréciations enregistrés avec succès !");
+    const currentApps = getCustomAppreciations();
+    
+    // 1. Sauvegarde dans le profil utilisateur
+    if (typeof currentUserConfig !== "undefined") {
+        currentUserConfig.appreciations = currentApps;
+    } else {
+        if (!window.appSettings) window.appSettings = {};
+        window.appSettings.appreciations = currentApps;
+    }
+    
+    // 2. Double sécurité : Stockage local direct pour le rafraîchissement de page
+    localStorage.setItem("smarteps_app_thresholds", JSON.stringify(currentApps));
+    
+    // 3. Appel de la sauvegarde générale du fichier si elle existe
+    if (typeof save === "function") save();
+    
+    if (!silent) {
+        alert("🎯 Paramètres des appréciations enregistrés avec succès !");
+    }
 }
 
 function loadAppreciationThresholds() {
-    const apps = appSettings.appreciations || null;
-
+    let apps = null;
+    
+    // Détection de la structure active de SmartEPS
+    if (typeof currentUserConfig !== "undefined" && currentUserConfig.appreciations) {
+        apps = currentUserConfig.appreciations;
+    } else if (window.appSettings && window.appSettings.appreciations) {
+        apps = window.appSettings.appreciations;
+    } else {
+        // Sécurité complémentaire : lecture directe dans le localStorage si le profil global n'est pas encore prêt
+        const localSaved = localStorage.getItem("smarteps_app_thresholds");
+        if (localSaved) apps = JSON.parse(localSaved);
+    }
+    
+    // Si des textes personnalisés existent, on écrase les valeurs par défaut du HTML
     if (apps) {
         if (apps.exc && document.getElementById("app-exc")) document.getElementById("app-exc").value = apps.exc;
         if (apps.tb && document.getElementById("app-tb")) document.getElementById("app-tb").value = apps.tb;
@@ -1235,7 +1261,6 @@ function loadSettingsToUI() {
         }
     });
     updateUserBadge();
-    loadAppreciationThresholds(); // recharge les appréciations du profil actif
 }
 
 // Met à jour le badge "🧑🏼‍🏫" du header avec le nom du professeur actif
@@ -2187,8 +2212,175 @@ window.addEventListener('beforeunload', function(e) {
     e.returnValue = '⚠️ Vous avez des modifications non enregistrées dans le fichier Excel. Quitter quand même ?';
 });
 
+//Fonction d'impression CJ
 function printPage() {
-    window.print();
+    if (!currentClass || !currentDisc) {
+        alert("Veuillez d'abord sélectionner une classe et une discipline.");
+        return;
+    }
+
+    const cl = classesDB[currentClass];
+    const students = cl.students || [];
+    const dates = cl.cycleDates?.[currentDisc] || [];
+    const nbrS = getNbrSeances();
+    const discTitle = OBSERVATION_DATA[currentDisc]?.title || currentDisc;
+    const aujourdhui = new Date();
+    const annee = aujourdhui.getFullYear();
+    // Si on est avant septembre (mois 8), l'année scolaire a commencé l'année d'avant
+    const AS = aujourdhui.getMonth() < 8 ? `${annee - 1} / ${annee}` : `${annee} / ${annee + 1}`;
+
+    // ── En-têtes séances dynamiques ──────────────────────────────────────────
+    const seancesHeaders = Array.from({length: nbrS}, (_, i) =>
+        `<th class="small-text">S${i+1}</th>`
+    ).join('');
+
+    // ── Ligne dates (Formatées en JJ/MM/AA) ───────────────────────────────────
+    const datesRow = Array.from({length: nbrS}, (_, i) => {
+        const d = dates[i] || '';
+        let fmt = '';
+        if (d) {
+            const parts = d.split('-'); // [AAAA, MM, JJ]
+            const aa = parts[0].slice(-2); // Récupère les 2 derniers chiffres de l'année
+            fmt = `${parts[2]}/${parts[1]}/${aa}`; // Assemble en JJ/MM/AA
+        }
+        return `<td class="small-text date-cell">${fmt}</td>`;
+    }).join('');
+
+    // ── Lignes élèves ─────────────────────────────────────────────────────────
+    const studentRows = students.map((s, i) => {
+        const g = s.grades?.[currentDisc] || { s: [], c: [], f: '' };
+        const seanceCells = Array.from({length: nbrS}, (_, j) => {
+            const val = g.s?.[j] || '';
+            return `<td class="small-text">${val}</td>`;
+        }).join('');
+
+        const idx = s.index || '?';
+        return `
+        <tr>
+            <td>${i + 1}</td>
+            <td class="idx-cell">${idx}</td>
+            <td class="left-align nom-cell">${s.nom}</td>
+            ${seanceCells}
+            <td>${g.c[0] !== undefined && g.c[0] !== '' ? g.c[0] : ''}</td>
+            <td>${g.c[1] !== undefined && g.c[1] !== '' ? g.c[1] : ''}</td>
+            <td>${g.c[2] !== undefined && g.c[2] !== '' ? g.c[2] : ''}</td>
+            <td>${g.c[3] !== undefined && g.c[3] !== '' ? g.c[3] : ''}</td>
+            <td><strong>${g.f !== undefined && g.f !== '' ? g.f : ''}</strong></td>
+        </tr>`;
+    }).join('');
+
+    // Calcul dynamique des largeurs (A4 paysage = 281mm utilisables)
+    const seanceW = Math.floor((281 - 94) / (nbrS + 4)); 
+    const nomW    = 281 - 94 - (nbrS * seanceW);         
+
+    const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Cycle ${discTitle} — ${currentClass}</title>
+    <style>
+        @page { size: A4 landscape; margin: 5mm; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Tahoma', 'Calibri', sans-serif; font-size: 9pt; color: black; margin: 0; }
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+        col.c-no   { width: 12mm; }
+        col.c-sx   { width: 10mm; }
+        col.c-nom  { width: ${nomW}mm; }
+        col.c-s    { width: ${seanceW}mm; }
+        col.c-eval { width: 14mm; }
+        col.c-nf   { width: 16mm; }
+        th, td { border: 1px solid black; padding: 1px 2px; text-align: center; vertical-align: middle;
+                 overflow: hidden; white-space: nowrap; }
+        .left-align  { text-align: left; padding-left: 3px; }
+        .right-align { text-align: right; }
+        .small-text  { font-size: 7pt; }
+        .date-cell   { font-size: 6.5pt; }
+        .nom-cell    { text-align: left; font-size: 8pt; white-space: nowrap;
+                       overflow: hidden; text-overflow: ellipsis; }
+        .idx-cell    { font-size: 7.5pt; font-weight: bold; }
+        .vertical-text {
+            writing-mode: vertical-rl; transform: rotate(180deg);
+            white-space: nowrap; padding: 4px 1px; font-size: 7pt;
+        }
+        tr:nth-child(odd)  td { background: #fff; }
+        tr:nth-child(even) td { background: #f0f0f0; }
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            tr { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+<table>
+    <colgroup>
+        <col class="c-no">
+        <col class="c-sx">
+        <col class="c-nom">
+        ${Array.from({length: nbrS}, () => '<col class="c-s">').join('')}
+        <col class="c-eval"><col class="c-eval"><col class="c-eval"><col class="c-eval">
+        <col class="c-nf">
+    </colgroup>
+    <tr>
+        <td colspan="3" class="right-align"><strong>Cycle :</strong> ${discTitle}</td>
+        <td colspan="${nbrS}"></td>
+        <td colspan="2" class="right-align"><strong>AS :</strong></td>
+        <td colspan="3">${AS}</td>
+    </tr>
+    <tr>
+        <th rowspan="4">N°</th>
+        <th rowspan="4">Sx</th>
+        <th rowspan="2">${currentClass}</th>
+        <th colspan="${nbrS}">Contrôle — Assiduité</th>
+        <th colspan="4">Evaluation</th>
+        <th rowspan="4">Note<br>Finale</th>
+    </tr>
+    <tr>
+        ${seancesHeaders}
+        <th rowspan="3" class="vertical-text">Comp.</th>
+        <th rowspan="3" class="vertical-text">Con.</th>
+        <th rowspan="3" class="vertical-text">C. Mot.</th>
+        <th rowspan="3" class="vertical-text">H. Mot.</th>
+    </tr>
+    <tr>
+        <td class="left-align small-text"><strong>Nom & Prénom</strong></td>
+        <td colspan="${nbrS - 1}"></td>
+    </tr>
+    <tr>
+        <td class="left-align date-cell"><strong>Date</strong></td>
+        ${datesRow}
+    </tr>
+    ${studentRows}
+</table>
+</body>
+</html>`;
+
+    // ── Gestion de l'Iframe d'impression ──────────────────────────────────────
+    // 1. Récupérer ou créer l'iframe cachée dans la page actuelle
+    let iframe = document.getElementById('print-iframe');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'print-iframe';
+        // Masquage complet de l'iframe à l'écran
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+    }
+
+    // 2. Injecter le code HTML généré dans l'iframe
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    // 3. Déclencher la boîte de dialogue d'impression dès que le contenu est chargé
+    iframe.contentWindow.onload = () => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+    };
 }
 
 
