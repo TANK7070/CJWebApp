@@ -2,10 +2,11 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.088</title>
+    <title>SmartEPS v1.089'</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
     <style>
         :root {
@@ -367,6 +368,7 @@
         <div id="settings-content" style="padding: 5px; max-height: 75vh; overflow-y: auto;">
             
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                <button type="button" id="btnStats" style="background-color: #698c8f; color: white;" onclick="showTab('stats')">📊 Statistiques</button>
                 <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white;">➕ Ajouter Nom/Prénom</button>
                 <button type="button" id="SupprPNom" style="background-color: #e74c3c; color: white;">🗑️ Supprimer Nom/Prénom</button>
                 <button type="button" id="Aprc" style="background-color: #2ecc71; color: white;" onclick="showTab('appreciation')">👁️ Aperçu Appréciation</button>
@@ -449,7 +451,6 @@
         <label for="GrcT">Grc T :</label>
         <input type="number" id="GrcT" min="0" max="12" step="1" oninput="valLimtGrcT(this); saveSettingsField('GrcT', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
     </div>
-    
 </fieldset>
 
 
@@ -561,6 +562,48 @@ function valLimtGrcT(input) {
                 <button type="button" style="background-color: #27ae60; color: white; padding: 6px 20px; margin-left: 10px;" onclick="saveAppreciationThresholds(false); showTab('settings')">✅ Valider</button>
             </div>
         </fieldset>
+    </div>
+</div>
+<div class="section" id="sec-stats">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+        <h2 style="color:var(--main-color1); margin-bottom:2px">📊 Statistiques</h2>
+        <div style="display:flex; gap:8px; align-items:center">
+            <select id="stats-filter-class" onchange="renderStats()" style="padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px;">
+                <option value="__all__">Toutes les classes</option>
+            </select>
+            <button class="btn-retour" onclick="showTab('settings')">⬅ Retour</button>
+        </div>
+    </div>
+
+    <!-- CARTES SYNTHÈSE -->
+    <div id="stats-cards" style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:5px;"></div>
+
+    <!-- GRAPHIQUES -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+        <div style="background:#fff; border-radius:10px; padding:12px; box-shadow:0 1px 4px rgba(0,0,0,0.1);">
+            <div style="font-weight:bold; color:var(--main-color1); margin-bottom:8px; font-size:13px;">📈 Distribution des notes finales</div>
+            <canvas id="chart-notes" height="150"></canvas>
+        </div>
+        <div style="background:#fff; border-radius:10px; padding:12px; box-shadow:0 1px 4px rgba(0,0,0,0.1);">
+            <div style="font-weight:bold; color:var(--main-color1); margin-bottom:8px; font-size:13px;">🎯 Moyennes par discipline</div>
+            <canvas id="chart-discs" height="150"></canvas>
+        </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+        <div style="background:#fff; border-radius:10px; padding:12px; box-shadow:0 1px 4px rgba(0,0,0,0.1);">
+            <div style="font-weight:bold; color:var(--main-color1); margin-bottom:8px; font-size:13px;">📋 Assiduité</div>
+            <canvas id="chart-assiduite" height="50"></canvas>
+        </div>
+        <div style="background:#fff; border-radius:10px; padding:12px; box-shadow:0 1px 4px rgba(0,0,0,0.1);">
+            <div style="font-weight:bold; color:var(--main-color1); margin-bottom:8px; font-size:13px;">👥 Répartition G / F / D</div>
+            <canvas id="chart-genre" height="50"></canvas>
+        </div>
+    </div>
+
+    <!-- TABLEAU RÉCAP PAR CLASSE -->
+    <div style="background:#fff; border-radius:10px; padding:12px; box-shadow:0 1px 4px rgba(0,0,0,0.1);">
+        <div style="font-weight:bold; color:var(--main-color1); margin-bottom:8px; font-size:13px;">📊 Récapitulatif par classe</div>
+        <div id="stats-table" style="overflow-x:auto;"></div>
     </div>
 </div>
 <div id="context-menu">
@@ -1642,8 +1685,8 @@ function verifierEtChargerProfil() {
 function showTab(id) {
     document.querySelectorAll(".section, .tab").forEach(el => el.classList.remove("active"));
     document.getElementById("sec-" + id).classList.add("active");
-    document.getElementById("tab-" + id).classList.add("active");
-    // Note: openCycle/openClass gèrent eux-mêmes showTab, pas besoin de les rappeler ici
+    document.getElementById("tab-" + id)?.classList.add("active");
+    if (id === 'stats') setTimeout(renderStats, 50);
 }
 
 function updateGender(idx, val) {
@@ -2213,6 +2256,237 @@ window.addEventListener('beforeunload', function(e) {
 });
 
 //Fonction d'impression CJ
+// ============================================================
+// STATISTIQUES
+// ============================================================
+let _statsCharts = {}; // registre des instances Chart.js actives
+
+function _destroyChart(id) {
+    if (_statsCharts[id]) { _statsCharts[id].destroy(); delete _statsCharts[id]; }
+}
+
+function renderStats() {
+    if (!document.getElementById('sec-stats')?.classList.contains('active')) return;
+    const classes = Object.keys(classesDB);
+    if (classes.length === 0) {
+        document.getElementById('stats-cards').innerHTML =
+            '<p style="color:#888; font-size:13px;">Aucune donnée disponible.</p>';
+        return;
+    }
+ 
+    // Filtre classe
+    const sel = document.getElementById('stats-filter-class');
+    const prevVal = sel.value;
+    sel.innerHTML = '<option value="__all__">Toutes les classes</option>';
+    classes.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.textContent = c;
+        if (c === prevVal) o.selected = true;
+        sel.appendChild(o);
+    });
+ 
+    const filterClass = sel.value;
+    const activeClasses = filterClass === '__all__' ? classes : [filterClass];
+ 
+    // ── Collecte des données ──────────────────────────────────────────────────
+    let totalEleves = 0, totalG = 0, totalF = 0, totalD = 0;
+    let allFinalGrades = [], discMoyMap = {}, discCountMap = {};
+    let assidP = 0, assidA = 0, assidT = 0, assidR = 0;
+    let discExcluMap = {};
+    const classMoyMap = {};
+ 
+    activeClasses.forEach(cn => {
+        const cl = classesDB[cn];
+        const students = cl.students || [];
+        totalEleves += students.length;
+ 
+        let classFinals = [];
+        students.forEach(s => {
+            if (s.index === 'G') totalG++;
+            else if (s.index === 'F') totalF++;
+            else totalD++;
+ 
+            // Assiduité
+            Object.values(s.grades || {}).forEach(g => {
+                (g.s || []).forEach(v => {
+                    if (v === 'P' || v === 'p') assidP++;
+                    else if (v === 'A' || v === 'a') assidA++;
+                    else if (v === 'T') assidT++;
+                    else if (v === 'R' || v === 'r') assidR++;
+                });
+            });
+ 
+            // Notes finales par discipline
+            Object.entries(s.grades || {}).forEach(([disc, g]) => {
+                const f = parseFloat(g.f);
+                if (!isNaN(f) && f >= 5) {
+                    discMoyMap[disc] = (discMoyMap[disc] || 0) + f;
+                    discCountMap[disc] = (discCountMap[disc] || 0) + 1;
+                } else if (!isNaN(f) && f >= 0) {
+                    // Note < 5 : élève exclu de la moyenne
+                    discExcluMap = discExcluMap || {};
+                    discExcluMap[disc] = (discExcluMap[disc] || 0) + 1;
+                }
+            });
+ 
+            // Moyenne générale élève
+            const finals = Object.values(s.grades || {})
+                .map(g => parseFloat(g.f)).filter(f => !isNaN(f) && f > 0);
+            if (finals.length > 0) {
+                const moy = finals.reduce((a,b) => a+b,0) / finals.length;
+                allFinalGrades.push(moy);
+                classFinals.push(moy);
+            }
+        });
+        if (classFinals.length > 0)
+            classMoyMap[cn] = (classFinals.reduce((a,b)=>a+b,0)/classFinals.length).toFixed(2);
+    });
+ 
+    const totalDiscs = Object.keys(discMoyMap).length;
+    const moyGlob = allFinalGrades.length > 0
+        ? (allFinalGrades.reduce((a,b)=>a+b,0)/allFinalGrades.length).toFixed(2) : '—';
+ 
+    // ── CARTES ───────────────────────────────────────────────────────────────
+    const cardsData = [
+        { icon:'🏫', val: activeClasses.length, lbl:'Classes' },
+        { icon:'👤', val: totalEleves,           lbl:'Élèves' },
+        { icon:'📚', val: totalDiscs,            lbl:'Disciplines' },
+        { icon:'📊', val: moyGlob,               lbl:'Moy. générale' },
+    ];
+    document.getElementById('stats-cards').innerHTML = cardsData.map(c => `
+        <div style="flex:1; background:var(--main-color1); color:#fff;
+                    border-radius:10px; padding:5px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+            <div style="font-size:20px; font-weight:bold; line-height:1.2"">${c.icon} ${c.val}</div>
+            <div style="font-size:10px; opacity:0.85">${c.lbl}</div>
+        </div>`).join('');
+ 
+    // ── CHART 1 : Distribution notes finales ─────────────────────────────────
+    _destroyChart('notes');
+    const buckets = ['0-5','5-8','8-10','10-12','12-14','14-16','16-18','18-20'];
+    const bucketFn = v =>
+        v<5?0: v<8?1: v<10?2: v<12?3: v<14?4: v<16?5: v<18?6: 7;
+    const counts = Array(8).fill(0);
+    allFinalGrades.forEach(g => counts[bucketFn(g)]++);
+    const ctx1 = document.getElementById('chart-notes').getContext('2d');
+    _statsCharts['notes'] = new Chart(ctx1, {
+        type:'bar',
+        data:{ labels:buckets, datasets:[{
+            label:'Nbre élèves', data:counts,
+            backgroundColor:'rgba(3,108,140,0.7)', borderColor:'#036c8c', borderWidth:1,
+            borderRadius:4
+        }]},
+        options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, ticks:{stepSize:1}} } }
+    });
+ 
+    // ── CHART 2 : Moyennes par discipline ────────────────────────────────────
+    _destroyChart('discs');
+    const discLabels = Object.keys(discMoyMap);
+    const discMoys   = discLabels.map(d => (discMoyMap[d]/discCountMap[d]).toFixed(2));
+    const ctx2 = document.getElementById('chart-discs').getContext('2d');
+    const discExclu = discLabels.map(d => discExcluMap[d] || 0);
+    _statsCharts['discs'] = new Chart(ctx2, {
+        type:'bar',
+        data:{ labels:discLabels, datasets:[{
+            label:'Moyenne /20', data:discMoys,
+            backgroundColor:'rgba(76,138,205,0.7)', borderColor:'#4c8acd', borderWidth:1,
+            borderRadius:4
+        }]},
+        options:{
+            indexAxis:'y',
+            plugins:{
+                legend:{display:false},
+                tooltip:{
+                    callbacks:{
+                        afterLabel: (ctx) => {
+                            const n = discExclu[ctx.dataIndex];
+                            return n > 0 ? `⚠️ ${n} élève(s) exclu(s) (note < 5)` : '';
+                        }
+                    }
+                },
+                // Afficher le nb d'exclus directement sur le graphique
+                datalabels: false
+            },
+            scales:{ x:{min:0,max:20} }
+        },
+        plugins:[{
+            id:'excluLabel',
+            afterDraw(chart) {
+                const ctx = chart.ctx;
+                chart.data.datasets[0].data.forEach((val, i) => {
+                    const n = discExclu[i];
+                    if (!n) return;
+                    const meta = chart.getDatasetMeta(0);
+                    const bar  = meta.data[i];
+                    ctx.save();
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.font = 'bold 10px Tahoma';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(`-${n}`, bar.x + 4, bar.y + 4);
+                    ctx.restore();
+                });
+            }
+        }]
+    });
+ 
+    // ── CHART 3 : Assiduité ──────────────────────────────────────────────────
+    _destroyChart('assiduite');
+    const ctx3 = document.getElementById('chart-assiduite').getContext('2d');
+    _statsCharts['assiduite'] = new Chart(ctx3, {
+        type:'doughnut',
+        data:{ labels:['Présent (P)','Absent (A)','Sans tenue (T)','Retard (R)'],
+               datasets:[{ data:[assidP, assidA, assidT, assidR],
+                   backgroundColor:['#2ecc71','#e74c3c','#3498db','#f39c12'],
+                   borderWidth:2 }]},
+        options:{ plugins:{ legend:{ position:'bottom', labels:{ font:{size:11} } } } }
+    });
+ 
+    // ── CHART 4 : Répartition G/F/D ─────────────────────────────────────────
+    _destroyChart('genre');
+    const ctx4 = document.getElementById('chart-genre').getContext('2d');
+    _statsCharts['genre'] = new Chart(ctx4, {
+        type:'doughnut',
+        data:{ labels:['Garçons','Filles','Dispensés'],
+               datasets:[{ data:[totalG, totalF, totalD],
+                   backgroundColor:['#036c8c','#e91e8c','#95a5a6'],
+                   borderWidth:2 }]},
+        options:{ plugins:{ legend:{ position:'bottom', labels:{ font:{size:11} } } } }
+    });
+ 
+    // ── TABLEAU RÉCAP ────────────────────────────────────────────────────────
+    const rows = activeClasses.map(cn => {
+        const cl = classesDB[cn];
+        const nb = cl.students?.length || 0;
+        const g  = cl.students?.filter(s=>s.index==='G').length || 0;
+        const f  = cl.students?.filter(s=>s.index==='F').length || 0;
+        const d  = cl.students?.filter(s=>s.index==='D').length || 0;
+        const moy = classMoyMap[cn] || '—';
+        return `<tr>
+            <td style="padding:5px 8px; border:1px solid #eee; font-weight:bold">${cn}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; text-align:center">${nb}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; text-align:center">${g}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; text-align:center">${f}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; text-align:center">${d}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; text-align:center; font-weight:bold; color:var(--main-color1)">${moy}</td>
+        </tr>`;
+    }).join('');
+ 
+    document.getElementById('stats-table').innerHTML = `
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+                <tr style="background:var(--main-color1); color:#fff;">
+                    <th style="padding:6px 8px; text-align:left">Classe</th>
+                    <th style="padding:6px 8px">Élèves</th>
+                    <th style="padding:6px 8px">G</th>
+                    <th style="padding:6px 8px">F</th>
+                    <th style="padding:6px 8px">D</th>
+                    <th style="padding:6px 8px">Moy. /20</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
+
+
 function printPage() {
     if (!currentClass || !currentDisc) {
         alert("Veuillez d'abord sélectionner une classe et une discipline.");
