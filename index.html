@@ -611,7 +611,10 @@ function valLimtGrcT(input) {
             <canvas id="chart-notes"></canvas>
         </div>
         <div class="stats-card">
-            <div class="stats-card-title">🎯 Moyennes par discipline</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div class="stats-card-title">🎯 Moyennes par cycle</div>
+                <div class="stats-card-title" style="font-size: 12px; color: #e74c3c;">- élèves moins de 5</div>
+            </div>
             <canvas id="chart-discs"></canvas>
         </div>
         <div class="stats-card">
@@ -2374,7 +2377,7 @@ function renderStats() {
     const cardsData = [
         { icon:'🏫', val: activeClasses.length, lbl:'Classes' },
         { icon:'👤', val: totalEleves,           lbl:'Élèves' },
-        { icon:'📚', val: totalDiscs,            lbl:'Disciplines' },
+        { icon:'📚', val: totalDiscs,            lbl:'Cycles' },
         { icon:'📊', val: moyGlob,               lbl:'Moy. générale' },
     ];
     document.getElementById('stats-cards').innerHTML = cardsData.map(c => `
