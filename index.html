@@ -2638,20 +2638,40 @@ function renderStats() {
             plugins: [{
                 id: 'markerMoyenne',
                 afterDraw: (chart) => {
-                    const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
-                    const xPos = x.getPixelForValue(plagMoy);
+                    // 1. Récupération des axes et du contexte
+                    const { ctx, scales: { x } } = chart;
+        
+                    // 2. Accès aux métadonnées géométriques de la première barre du graphique (index 0)
+                    const meta = chart.getDatasetMeta(0);
+                    if (!meta.data || meta.data.length === 0) return;
+        
+                    // On récupère les limites verticales réelles (y et height) de la barre affichée
+                    const bar = meta.data[0];
+                    const barTop = bar.y - (bar.height / 3.5);
+                    const barBottom = bar.y + (bar.height / 1.5);
+        
+                    // 3. Calcul de la position X au pixel près pour la valeur de la moyenne
+                    const xPos = Math.round(x.getPixelForValue(plagMoy));
+        
                     ctx.save();
-                    ctx.strokeStyle = '#e74c3c'; 
-                    ctx.lineWidth = 4;
+        
+                    // 4. Style du petit trait vertical sur la barre
+                    ctx.strokeStyle = '#e74c3c'; // Rouge
+                    ctx.lineWidth = 4;           // Épaisseur du trait
+        
                     ctx.beginPath();
-                    ctx.moveTo(xPos, top - 2);
-                    ctx.lineTo(xPos, bottom + 2);
+                    // Le trait commence au sommet de la barre et s'arrête à sa base
+                    ctx.moveTo(xPos, barTop);
+                    ctx.lineTo(xPos, barBottom);
                     ctx.stroke();
-                    
+        
+                    // 5. Affichage de l'étiquette texte (Moyenne) positionnée de manière propre au-dessus de la barre
                     ctx.fillStyle = '#e74c3c';
                     ctx.font = 'bold 10pt Segoe UI, Tahoma';
                     ctx.textAlign = 'center';
-                    ctx.fillText(`Moyenne : ${plagMoy.toFixed(2)}/20`, xPos, top - 8);
+                    // Placé 6 pixels au-dessus du sommet de la barre
+                    ctx.fillText(`Moyenne : ${plagMoy.toFixed(2)}/20`, xPos, barTop - 6);
+        
                     ctx.restore();
                 }
             }]
