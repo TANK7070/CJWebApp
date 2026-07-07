@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.089'</title>
+    <title>SmartEPS v1.089''</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -584,20 +584,20 @@ function valLimtGrcT(input) {
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 12px;
-            margin-bottom: 12px;
+            gap: 5px;
+            margin-bottom: 5px;
         }
         .stats-card {
             background: #fff;
             border-radius: 10px;
-            padding: 12px;
+            padding: 5px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.1);
             min-width: 0; /* évite le débordement dans le grid */
         }
         .stats-card-title {
             font-weight: bold;
             color: var(--main-color1);
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             font-size: 13px;
         }
         .stats-card canvas {
@@ -610,6 +610,13 @@ function valLimtGrcT(input) {
             <div class="stats-card-title">📈 Distribution des notes finales</div>
             <canvas id="chart-notes"></canvas>
         </div>
+
+        <!-- PLAGE DES NOTES -->
+        <div class="stats-card" style="margin-bottom:12px;">
+            <div class="stats-card-title">📊 Plage des notes (min / moy / max)</div>
+            <canvas id="chart-plage" style="width:100%;"></canvas>
+        </div>
+
         <div class="stats-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <div class="stats-card-title">🎯 Moyennes par cycle</div>
@@ -617,6 +624,12 @@ function valLimtGrcT(input) {
             </div>
             <canvas id="chart-discs"></canvas>
         </div>
+        <div class="stats-card" style="width: 100%; height: 240px; margin-bottom: 20px;">
+    <div class="stats-card-title">📅 Taux d'avancement des Cycles(%)</div>
+    <div style="position: relative; height: 170px;">
+        <canvas id="chart-avancement"></canvas>
+    </div>
+</div>
         <div class="stats-card">
             <div class="stats-card-title">📋 Assiduité</div>
             <canvas id="chart-assiduite"></canvas>
@@ -2294,7 +2307,7 @@ function _destroyChart(id) {
 
 function renderStats() {
     if (!document.getElementById('sec-stats')?.classList.contains('active')) return;
-    const classes = Object.keys(classesDB);
+    const classes = Object.keys(classesDB).filter(k => k !== 'param' && k !== 'settings' && k !== 'config');
     if (classes.length === 0) {
         document.getElementById('stats-cards').innerHTML =
             '<p style="color:#888; font-size:13px;">Aucune donnée disponible.</p>';
@@ -2321,26 +2334,63 @@ function renderStats() {
     let assidP = 0, assidA = 0, assidT = 0, assidR = 0;
     let discExcluMap = {};
     const classMoyMap = {};
+    
+    // Objets de suivi pour l'avancement détaillé par discipline
+    let seancesParDisc = {}; 
+
+    // 🔥 1. CONFIGURATION DU MAPPING DE NBRSCYL
+    const NBR_SEANCES_VALEURS = { "1": 6, "2": 8, "3": 10, "4": 12 };
+    let rawNbr = undefined;
+    
+    // Détection de l'index stocké (DOM ou Objets de configuration)
+    const inputParam = document.getElementById('NbrSCyl') || document.getElementById('nbrSCyl') || document.querySelector('[name="NbrSCyl"]');
+    if (inputParam && inputParam.value) {
+        rawNbr = inputParam.value.toString().trim();
+    } else if (classesDB.param && classesDB.param.NbrSCyl) {
+        rawNbr = classesDB.param.NbrSCyl.toString().trim();
+    } else if (classesDB.settings && classesDB.settings.NbrSCyl) {
+        rawNbr = classesDB.settings.NbrSCyl.toString().trim();
+    } else if (typeof settings !== 'undefined' && settings?.NbrSCyl) {
+        rawNbr = settings.NbrSCyl.toString().trim();
+    } else if (window.appSettings?.NbrSCyl) {
+        rawNbr = window.appSettings.NbrSCyl.toString().trim();
+    }
+
+    // 🔥 2. TRADUCTION DE L'INDEX VIA LE MAPPING (Ex: "2" devient 8)
+    // Si l'index n'est pas trouvé dans le dictionnaire, on prend 12 par défaut
+    let seancesPrevues = NBR_SEANCES_VALEURS[rawNbr] || 12;
  
     activeClasses.forEach(cn => {
         const cl = classesDB[cn];
-        const students = cl.students || [];
+        if (!cl) return;
+        const students = cl.students || (Array.isArray(cl) ? cl : []);
         totalEleves += students.length;
  
         let classFinals = [];
         students.forEach(s => {
             if (s.index === 'G') totalG++;
             else if (s.index === 'F') totalF++;
-            else totalD++;
+            else if (s.index === 'D') totalD++;
  
-            // Assiduité
-            Object.values(s.grades || {}).forEach(g => {
-                (g.s || []).forEach(v => {
-                    if (v === 'P' || v === 'p') assidP++;
-                    else if (v === 'A' || v === 'a') assidA++;
-                    else if (v === 'T') assidT++;
-                    else if (v === 'R' || v === 'r') assidR++;
-                });
+            // Assiduité et Analyse de l'avancement par cycle
+            Object.entries(s.grades || {}).forEach(([disc, g]) => {
+                if (g && Array.isArray(g.s)) {
+                    g.s.forEach((v, index) => {
+                        if (v === 'P' || v === 'p') assidP++;
+                        else if (v === 'A' || v === 'a') assidA++;
+                        else if (v === 'T') assidT++;
+                        else if (v === 'R' || v === 'r') assidR++;
+                        
+                        // Si une case de présence/absence/dispense est remplie, la séance a eu lieu
+                        if (v && v.trim() !== "") {
+                            if (!seancesParDisc[disc]) {
+                                seancesParDisc[disc] = new Set();
+                            }
+                            // Clé unique par classe et par numéro de séance pour cette discipline
+                            seancesParDisc[disc].add(`${cn}-S${index + 1}`);
+                        }
+                    });
+                }
             });
  
             // Notes finales par discipline
@@ -2350,19 +2400,20 @@ function renderStats() {
                     discMoyMap[disc] = (discMoyMap[disc] || 0) + f;
                     discCountMap[disc] = (discCountMap[disc] || 0) + 1;
                 } else if (!isNaN(f) && f >= 0) {
-                    // Note < 5 : élève exclu de la moyenne
                     discExcluMap = discExcluMap || {};
                     discExcluMap[disc] = (discExcluMap[disc] || 0) + 1;
                 }
             });
  
-            // Moyenne générale élève
-            const finals = Object.values(s.grades || {})
-                .map(g => parseFloat(g.f)).filter(f => !isNaN(f) && f > 0);
-            if (finals.length > 0) {
-                const moy = finals.reduce((a,b) => a+b,0) / finals.length;
-                allFinalGrades.push(moy);
-                classFinals.push(moy);
+            // Moyenne générale élève (exclusion des dispensés "D")
+            if (s.index !== 'D') {
+                const finals = Object.values(s.grades || {})
+                    .map(g => parseFloat(g.f)).filter(f => !isNaN(f) && f > 0);
+                if (finals.length > 0) {
+                    const moy = finals.reduce((a,b) => a+b,0) / finals.length;
+                    allFinalGrades.push(moy);
+                    classFinals.push(moy);
+                }
             }
         });
         if (classFinals.length > 0)
@@ -2383,10 +2434,58 @@ function renderStats() {
     document.getElementById('stats-cards').innerHTML = cardsData.map(c => `
         <div style="flex:1; background:var(--main-color1); color:#fff;
                     border-radius:10px; padding:5px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
-            <div style="font-size:20px; font-weight:bold; line-height:1.2"">${c.icon} ${c.val}</div>
+            <div style="font-size:20px; font-weight:bold; line-height:1.2">${c.icon} ${c.val}</div>
             <div style="font-size:10px; opacity:0.85">${c.lbl}</div>
         </div>`).join('');
  
+    // ── DIAGRAMME : AVANCEMENT MULTI-CYCLES (Chart.js) ───────────────────────
+    _destroyChart('avancement');
+    
+    const labelsAvancement = Object.keys(seancesParDisc);
+    const donneesAvancement = labelsAvancement.map(disc => {
+        const totalSeancesFaites = seancesParDisc[disc].size;
+        // Lissage du nombre de séances faites par rapport au nombre de classes sélectionnées
+        const seancesFaitesLissees = Math.min(Math.round(totalSeancesFaites / activeClasses.length), seancesPrevues);
+        // Calcul du pourcentage basé sur le vrai volume horaire dynamique décodé
+        return seancesPrevues > 0 ? Math.round((seancesFaitesLissees / seancesPrevues) * 100) : 0;
+    });
+
+    const ctxAvnc = document.getElementById('chart-avancement').getContext('2d');
+    _statsCharts['avancement'] = new Chart(ctxAvnc, {
+        type: 'bar',
+        data: {
+            labels: labelsAvancement,
+            datasets: [{
+                label: 'Taux d\'avancement (%)',
+                data: donneesAvancement,
+                backgroundColor: 'rgba(76, 138, 205, 0.7)',
+                borderColor: '#4c8acd',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y', 
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const sFaites = Math.round((context.raw * seancesPrevues) / 100);
+                            return ` Avancement : ${context.raw}% (${sFaites}/${seancesPrevues} séances)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { min: 0, max: 100, ticks: { callback: value => value + '%' } },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+
     // ── CHART 1 : Distribution notes finales ─────────────────────────────────
     _destroyChart('notes');
     const buckets = ['0-5','5-8','8-10','10-12','12-14','14-16','16-18','18-20'];
@@ -2431,7 +2530,6 @@ function renderStats() {
                         }
                     }
                 },
-                // Afficher le nb d'exclus directement sur le graphique
                 datalabels: false
             },
             scales:{ x:{min:0,max:20} }
@@ -2483,10 +2581,11 @@ function renderStats() {
     // ── TABLEAU RÉCAP ────────────────────────────────────────────────────────
     const rows = activeClasses.map(cn => {
         const cl = classesDB[cn];
-        const nb = cl.students?.length || 0;
-        const g  = cl.students?.filter(s=>s.index==='G').length || 0;
-        const f  = cl.students?.filter(s=>s.index==='F').length || 0;
-        const d  = cl.students?.filter(s=>s.index==='D').length || 0;
+        const studentsList = cl.students || (Array.isArray(cl) ? cl : []);
+        const nb = studentsList.length || 0;
+        const g  = studentsList.filter(s=>s.index==='G').length || 0;
+        const f  = studentsList.filter(s=>s.index==='F').length || 0;
+        const d  = studentsList.filter(s=>s.index==='D').length || 0;
         const moy = classMoyMap[cn] || '—';
         return `<tr>
             <td style="padding:5px 8px; border:1px solid #eee; font-weight:bold">${cn}</td>
@@ -2498,6 +2597,67 @@ function renderStats() {
         </tr>`;
     }).join('');
  
+    // ── CHART 5 : Barre flottante de la plage des notes générales ───────────
+    _destroyChart('plage');
+    if (allFinalGrades.length > 0) {
+        const plagMin = Math.min(...allFinalGrades);
+        const plagMax = Math.max(...allFinalGrades);
+        const plagMoy = allFinalGrades.reduce((a,b)=>a+b,0) / allFinalGrades.length;
+        const ctx5 = document.getElementById('chart-plage').getContext('2d');
+        _statsCharts['plage'] = new Chart(ctx5, {
+            type: 'bar',
+            data: { 
+                labels: ['Moy. générale /20'], 
+                datasets: [{ 
+                    label: 'Plage (min→max)',
+                    data: [[plagMin, plagMax]],
+                    backgroundColor: 'rgba(3,108,140,0.35)', 
+                    borderColor: '#036c8c',
+                    borderWidth: 2, 
+                    borderRadius: 4, 
+                    borderSkipped: false,
+                    barThickness: 25
+                }]
+            },
+            options: {
+                responsive:true, 
+                maintainAspectRatio:true,
+                indexAxis: 'y',
+                plugins: {
+                    legend:{ display: false },
+                    tooltip:{ callbacks:{ label:(ctx) => {
+                        let v = ctx.raw;
+                        return ` Min: ${v[0].toFixed(2)}/20 | Max: ${v[1].toFixed(2)}/20`;
+                    }}}
+                },
+                scales:{ 
+                    x:{ min:0, max:20, ticks:{stepSize:2, font:{weight:'bold'}}, grid:{display:true} },
+                    y:{ display:false } 
+                }
+            },
+            plugins: [{
+                id: 'markerMoyenne',
+                afterDraw: (chart) => {
+                    const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+                    const xPos = x.getPixelForValue(plagMoy);
+                    ctx.save();
+                    ctx.strokeStyle = '#e74c3c'; 
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(xPos, top - 2);
+                    ctx.lineTo(xPos, bottom + 2);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.font = 'bold 10pt Segoe UI, Tahoma';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`Moyenne : ${plagMoy.toFixed(2)}/20`, xPos, top - 8);
+                    ctx.restore();
+                }
+            }]
+        });
+    }
+
     document.getElementById('stats-table').innerHTML = `
         <table style="width:100%; border-collapse:collapse; font-size:13px;">
             <thead>
