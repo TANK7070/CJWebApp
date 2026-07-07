@@ -81,3 +81,7 @@
 
 1.088	:
 	*génération, remplissage et impression du feuille journal
+
+1.089	:
+	statistique et diagrammes (en cours)
+
