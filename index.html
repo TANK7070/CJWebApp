@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.090''</title>
+    <title>SmartEPS v1.091''</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -247,7 +247,7 @@
 
     /* Boutons */
     body.dark-mode button {
-        background: rgba(255,255,255,0.08) !important;
+        background: rgba(255,255,255,0.08);
         color: #e0e0e0 !important;
         border-color: #3a3a5a !important;
     }
@@ -916,6 +916,10 @@ function valLimtGrcT(input) {
         <div class="stats-card">
             <div class="stats-card-title">👥 Répartition G / F / D</div>
             <canvas id="chart-genre"></canvas>
+        </div>
+        <div class="stats-card">
+            <div class="stats-card-title">📊 Taux d'absence par sexe</div>
+            <canvas id="chart-absence-sexe" ></canvas>
         </div>
     </div>
 
@@ -2165,9 +2169,9 @@ function updateScore(si, t, s, v) {
 
 function getInitialCompValue(className) {
     const name = className.toUpperCase();
-    if (name.includes("TC") || name.includes("3AC")) return 5;
-    if (name.includes("1BAC") || name.includes("2AC")) return 4;
-    if (name.includes("2BAC") || name.includes("1AC")) return 3;
+    if (name.includes("TC") || name.includes("3A")) return 5;
+    if (name.includes("1BAC") || name.includes("2A")) return 4;
+    if (name.includes("2BAC") || name.includes("1A")) return 3;
     return 0;
 }
 
@@ -2629,6 +2633,10 @@ function _statsCollect(activeClasses) {
     let allFinalGrades = [], discMoyMap = {}, discCountMap = {}, discExcluMap = {};
     let assidP = 0, assidA = 0, assidT = 0, assidR = 0;
     const classMoyMap = {};
+    const allDiscSet = new Set();
+
+    // --- COMPTEURS D'ABSENCES PAR SEXE (total global) ---
+    let absencesG = 0, absencesF = 0, absencesD = 0;
 
     activeClasses.forEach(cn => {
         const cl = classesDB[cn];
@@ -2637,14 +2645,28 @@ function _statsCollect(activeClasses) {
         let classFinals = [];
 
         students.forEach(s => {
-            if (s.index === 'G') totalG++;
-            else if (s.index === 'F') totalF++;
-            else totalD++;
+            const sexe = s.index; // 'G', 'F', 'D' ou '?'
+            if (sexe === 'G') totalG++;
+            else if (sexe === 'F') totalF++;
+            else totalD++; // inclut '?' aussi
 
+            // --- COMPTAGE DES ABSENCES PAR SEXE ---
+            Object.values(s.grades || {}).forEach(g => {
+                (g.s || []).forEach(v => {
+                    // On ne compte que les absences (A ou a)
+                    if (v === 'A' ) {
+                        if (sexe === 'G') absencesG++;
+                        else if (sexe === 'F') absencesF++;
+                        else absencesD++;
+                    }
+                });
+            });
+
+            // (suite du code existant pour les notes, assiduité, etc.)
             Object.values(s.grades || {}).forEach(g => {
                 (g.s || []).forEach(v => {
                     if (v === 'P' || v === 'p') assidP++;
-                    else if (v === 'A' || v === 'a') assidA++;
+                    else if (v === 'A' ) assidA++;
                     else if (v === 'T') assidT++;
                     else if (v === 'R' || v === 'r') assidR++;
                 });
@@ -2652,11 +2674,14 @@ function _statsCollect(activeClasses) {
 
             Object.entries(s.grades || {}).forEach(([disc, g]) => {
                 const f = parseFloat(g.f);
-                if (!isNaN(f) && f >= 5) {
-                    discMoyMap[disc] = (discMoyMap[disc] || 0) + f;
-                    discCountMap[disc] = (discCountMap[disc] || 0) + 1;
-                } else if (!isNaN(f) && f >= 0) {
-                    discExcluMap[disc] = (discExcluMap[disc] || 0) + 1;
+                if (!isNaN(f) && f >= 0) {
+                    allDiscSet.add(disc);
+                    if (f >= 5) {
+                        discMoyMap[disc] = (discMoyMap[disc] || 0) + f;
+                        discCountMap[disc] = (discCountMap[disc] || 0) + 1;
+                    } else {
+                        discExcluMap[disc] = (discExcluMap[disc] || 0) + 1;
+                    }
                 }
             });
 
@@ -2673,28 +2698,36 @@ function _statsCollect(activeClasses) {
             classMoyMap[cn] = (classFinals.reduce((a,b)=>a+b,0)/classFinals.length).toFixed(2);
     });
 
-    const totalDiscs = Object.keys(discMoyMap).length;
+    const totalDiscs = allDiscSet.size;
     const moyGlob = allFinalGrades.length > 0
         ? (allFinalGrades.reduce((a,b)=>a+b,0)/allFinalGrades.length).toFixed(2) : '—';
 
     return { totalEleves, totalG, totalF, totalD, allFinalGrades,
              discMoyMap, discCountMap, discExcluMap,
              assidP, assidA, assidT, assidR,
-             classMoyMap, totalDiscs, moyGlob };
+             classMoyMap, totalDiscs, moyGlob,
+             absencesG, absencesF, absencesD }; // <- on retourne les absences par sexe
 }
 
 function _statsCards(d, activeClasses) {
     const cards = [
-        { icon:'🏫', val: activeClasses.length, lbl:'Classes' },
-        { icon:'👤', val: d.totalEleves,         lbl:'Élèves' },
-        { icon:'📚', val: d.totalDiscs,          lbl:'Cycles' },
-        { icon:'📊', val: d.moyGlob,             lbl:'Moy. générale' },
+        { icon:'🏫', val: activeClasses.length, lbl:'Classes', detail: '' },
+        { 
+            lbl:'Élèves',
+            icon:'👤', 
+            val: d.totalEleves, 
+            detail: `♂️: ${d.totalG} | ♀️: ${d.totalF} | ⬛: ${d.totalD}`
+        },
+        { icon:'📚', val: d.totalDiscs, lbl:'Cycles', detail: '' },
+        { icon:'📊', val: d.moyGlob, lbl:'Moy. générale', detail: '' },
     ];
+
     document.getElementById('stats-cards').innerHTML = cards.map(c => `
         <div style="flex:1; background:var(--main-color1); color:#fff;
                     border-radius:10px; padding:5px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
             <div style="font-size:20px; font-weight:bold; line-height:1.2">${c.icon} ${c.val}</div>
             <div style="font-size:10px; opacity:0.85">${c.lbl}</div>
+            ${c.detail ? `<div style="font-size:9px; opacity:0.75; margin-top:2px;">${c.detail}</div>` : ''}
         </div>`).join('');
 }
 
@@ -2733,7 +2766,7 @@ function _statsChartDiscs(d) {
                 legend:{display:false},
                 tooltip:{ callbacks:{ afterLabel:(ctx) => {
                     const n = discExclu[ctx.dataIndex];
-                    return n > 0 ? `⚠️ ${n} élève(s) exclu(s) (note < 5)` : '';
+                    return n > 0 ? `⚠️ ${n} élève(s) exclu(s) (note < 3)` : '';
                 }}}
             },
             scales:{ x:{min:0,max:20} }
@@ -2919,7 +2952,56 @@ function _statsTable(d, activeClasses) {
         </table>`;
 }
 
-// ── Orchestrateur principal ───────────────────────────────────────────────────
+function _statsChartAbsenceBySexe(d) {
+    _destroyChart('absence-sexe');
+
+    const data = [d.absencesG, d.absencesF, d.absencesD];
+    const total = data.reduce((a, b) => a + b, 0);
+
+    // Si aucune absence, afficher un message
+    if (total === 0) {
+        const container = document.getElementById('chart-absence-sexe').parentElement;
+        container.innerHTML = '<p style="padding:10px; text-align:center; color:#888;">Aucune absence enregistrée.</p>';
+        return;
+    }
+
+    const ctx = document.getElementById('chart-absence-sexe').getContext('2d');
+    _statsCharts['absence-sexe'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Garçons (G)', 'Filles (F)', 'Dispensés (D)'],
+            datasets: [{
+                data: data,
+                backgroundColor: ['#036c8c', '#e91e8c', '#95a5a6'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 11 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            let value = context.parsed || 0;
+                            let percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return label + ' : ' + value + ' absences (' + percentage + '%)';
+                        }
+                    }
+                }
+            },
+            cutout: '65%'
+        }
+    });
+}
+
+// ── Orchestrateur principal des diagrammes ───────────────────────────────────────────────────
 function renderStats() {
     if (!document.getElementById('sec-stats')?.classList.contains('active')) return;
     const classes = Object.keys(classesDB);
@@ -2929,22 +3011,53 @@ function renderStats() {
         return;
     }
 
-    // Filtre classe
+    // --- Filtre classe + niveau ---
     const sel = document.getElementById('stats-filter-class');
-    const prevVal = sel.value;
-    sel.innerHTML = '<option value="__all__">Toutes les classes</option>';
-    classes.forEach(c => {
-        const o = document.createElement('option');
-        o.value = c; o.textContent = c;
-        if (c === prevVal) o.selected = true;
-        sel.appendChild(o);
+    const prevVal = sel.value; // sauvegarde de la sélection précédente
+    sel.innerHTML = ''; // on vide
+
+    // 1. Option "Toutes les classes"
+    const allOpt = document.createElement('option');
+    allOpt.value = '__all__';
+    allOpt.textContent = '📚 Toutes les classes';
+    if (prevVal === '__all__') allOpt.selected = true;
+    sel.appendChild(allOpt);
+
+    // 2. Options par niveau (ordre choisi)
+    const niveaux = ['TC',  '1BAC', '2BAC','1AC', '2AC', '3AC'];
+    const niveauxPresent = niveaux.filter(n => classes.some(c => getNiveauFromName(c) === n));
+    niveauxPresent.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = 'niveau:' + n; // préfixe pour distinguer des noms de classe
+        opt.textContent = '🏷️ Niveau ' + n;
+        if (prevVal === 'niveau:' + n) opt.selected = true;
+        sel.appendChild(opt);
     });
-    const activeClasses = sel.value === '__all__' ? classes : [sel.value];
 
-    // Collecte unique des données
+    // 3. Options par classe individuelle (triées alphabétiquement)
+    classes.slice().sort().forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = '👥 ' + c;
+        if (c === prevVal) opt.selected = true;
+        sel.appendChild(opt);
+    });
+
+    // --- Détermination des classes actives selon le filtre ---
+    let activeClasses;
+    const selected = sel.value;
+    if (selected === '__all__') {
+        activeClasses = classes;
+    } else if (selected.startsWith('niveau:')) {
+        const niveau = selected.split(':')[1];
+        activeClasses = classes.filter(c => getNiveauFromName(c) === niveau);
+    } else {
+        // sélection d'une classe précise
+        activeClasses = [selected];
+    }
+
+    // --- Collecte des données et rendu ---
     const data = _statsCollect(activeClasses);
-
-    // Rendu de chaque composant
     _statsCards(data, activeClasses);
     _statsChartNotes(data);
     _statsChartDiscs(data);
@@ -2953,6 +3066,7 @@ function renderStats() {
     _statsChartPlage(data);
     _statsAvancement(activeClasses);
     _statsTable(data, activeClasses);
+    _statsChartAbsenceBySexe(data);
 }
 
 
