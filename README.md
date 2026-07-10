@@ -83,5 +83,7 @@
 	*génération, remplissage et impression du feuille journal
 
 1.089	:
-	statistique et diagrammes (en cours)
+	statistique et diagrammes (à perfectionner)
 
+1.090	:
+	* mode sombre
