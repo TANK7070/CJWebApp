@@ -93,3 +93,7 @@
 	* Taux d'absence par sexe
 	* Données au centre des doughnuts
 
+1.092	:
+	* masquer "T" dans menu statut pour les "D"
+	* Graphique "Taux de "Sans tenue (T)" par sexe"
+
