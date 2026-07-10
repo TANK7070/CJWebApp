@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.091''</title>
+    <title>SmartEPS v1.092</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -891,7 +891,7 @@ function valLimtGrcT(input) {
         <div class="stats-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <div class="stats-card-title">🎯 Moyennes par cycle</div>
-                <div class="stats-card-title" style="font-size: 12px; color: #e74c3c;">- élèves moins de 5</div>
+                <div class="stats-card-title" style="font-size: 12px; color: #e74c3c;">- élèves moins de 3</div>
             </div>
             <canvas id="chart-discs"></canvas>
         </div>
@@ -920,6 +920,10 @@ function valLimtGrcT(input) {
         <div class="stats-card">
             <div class="stats-card-title">📊 Taux d'absence par sexe</div>
             <canvas id="chart-absence-sexe" ></canvas>
+        </div>
+            <div class="stats-card">
+            <div class="stats-card-title">📊 Taux de "Sans tenue (T)" par sexe</div>
+            <canvas id="chart-taux-t-sexe" style="width:100%;"></canvas>
         </div>
     </div>
 
@@ -2083,9 +2087,20 @@ function updateDate(seanceIdx, dateValue) {
 let activeCellTarget = null;
 
 function toggleStatus(e, studentIdx, seanceIdx) {
-    if(e) e.preventDefault();
-    
+    if (e) e.preventDefault();
+
     const picker = document.getElementById("status-picker");
+    const student = classesDB[currentClass].students[studentIdx];
+    const btnT = picker.querySelector('button[onclick="setStatus(\'T\')"]');
+
+    if (btnT) {
+        if (student.index === "D") {
+            btnT.style.display = 'none';
+        } else {
+            btnT.style.display = ''; // rétablit l'affichage par défaut
+        }
+    }
+
     picker.style.display = "grid";
     picker.style.left = e.pageX + "px";
     picker.style.top = e.pageY + "px";
@@ -2629,7 +2644,7 @@ function _destroyChart(id) {
 // ============================================================
 
 function _statsCollect(activeClasses) {
-// Collecteur de data pour diagrammes
+    // Collecteur de data pour diagrammes
     let totalEleves = 0, totalG = 0, totalF = 0, totalD = 0;
     let allFinalGrades = [], discMoyMap = {}, discCountMap = {}, discExcluMap = {};
     let assidP = 0, assidA = 0, assidT = 0, assidR = 0;
@@ -2640,8 +2655,12 @@ function _statsCollect(activeClasses) {
     let seancesEffectives = 0;
     let seancesP = 0, seancesA = 0, seancesT = 0, seancesR = 0;
 
-    // --- COMPTEURS ABSENCES PAR SEXE (si déjà présents) ---
+    // --- COMPTEURS ABSENCES PAR SEXE ---
     let absencesG = 0, absencesF = 0, absencesD = 0;
+
+    // --- NOUVEAUX COMPTEURS pour les T par sexe (exclut D et ?) ---
+    let seancesEffectivesG = 0, seancesEffectivesF = 0;
+    let seancesTG = 0, seancesTF = 0;
 
     activeClasses.forEach(cn => {
         const cl = classesDB[cn];
@@ -2654,30 +2673,35 @@ function _statsCollect(activeClasses) {
             const sexe = s.index;
             if (sexe === 'G') totalG++;
             else if (sexe === 'F') totalF++;
-            else totalD++;
+            else totalD++; // inclut '?' et 'D'
 
             // --- PARCOURS DES DISCIPLINES ---
             Object.entries(s.grades || {}).forEach(([disc, g]) => {
-                // Récupération des dates pour cette discipline
                 const dates = cycleDates[disc] || [];
 
                 // Parcours des séances (indices)
                 g.s.forEach((statut, idx) => {
                     const dateVal = dates[idx] || '';
-                    // Si la séance a une date (non vide)
                     if (dateVal.trim() !== '') {
+                        // Comptage global
                         seancesEffectives++;
                         if (statut === 'P' || statut === 'p') seancesP++;
-                        else if (statut === 'A') {
+                        else if (statut === 'A' || statut === 'a') {
                             seancesA++;
-                            // Comptage des absences par sexe (optionnel)
+                            // Comptage des absences par sexe (pour le graphique dédié)
                             if (sexe === 'G') absencesG++;
                             else if (sexe === 'F') absencesF++;
                             else absencesD++;
                         }
-                        else if (statut === 'T') seancesT++;
+                        else if (statut === 'T') {
+                            seancesT++;
+                            // Comptage des T par sexe (exclut D et ?)
+                            if (sexe === 'G') { seancesEffectivesG++; seancesTG++; }
+                            else if (sexe === 'F') { seancesEffectivesF++; seancesTF++; }
+                            // Les D et ? ne sont pas comptés
+                        }
                         else if (statut === 'R' || statut === 'r') seancesR++;
-                        // Les statuts vides ou autres (M, etc.) ne sont pas comptés
+                        // Autres statuts (M, etc.) ignorés
                     }
                 });
 
@@ -2717,7 +2741,8 @@ function _statsCollect(activeClasses) {
              assidP, assidA, assidT, assidR, // conservés pour compatibilité
              classMoyMap, totalDiscs, moyGlob,
              seancesEffectives, seancesP, seancesA, seancesT, seancesR,
-             absencesG, absencesF, absencesD };
+             absencesG, absencesF, absencesD,
+             seancesEffectivesG, seancesEffectivesF, seancesTG, seancesTF };
 }
 
 function _statsCards(d, activeClasses) {
@@ -3184,6 +3209,81 @@ function _statsChartAbsenceBySexe(d) {
     });
 }
 
+function _statsChartTauxTParSexe(d) {
+    // Taux des "Sans tenue (T)" par sexe (G et F uniquement)
+    _destroyChart('taux-t-sexe');
+
+    const totalT = d.seancesTG + d.seancesTF;
+
+    if (totalT === 0) {
+        const container = document.getElementById('chart-taux-t-sexe').parentElement;
+        container.innerHTML = '<p style="padding:10px; text-align:center; color:#888;">Aucun "Sans tenue (T)" enregistré.</p>';
+        return;
+    }
+
+    const pG = (d.seancesTG / totalT) * 100;
+    const pF = (d.seancesTF / totalT) * 100;
+
+    const ctx = document.getElementById('chart-taux-t-sexe').getContext('2d');
+    _statsCharts['taux-t-sexe'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Garçons (T)', 'Filles (T)'],
+            datasets: [{
+                data: [pG, pF],
+                backgroundColor: ['#036c8c', '#e91e8c'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 11 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            let value = context.parsed || 0;
+                            let count = 0;
+                            if (label.includes('Garçons')) count = d.seancesTG;
+                            else count = d.seancesTF;
+                            return label + ' : ' + value.toFixed(1) + '% (' + count + ' T)';
+                        }
+                    }
+                }
+            },
+            cutout: '65%'
+        },
+        plugins: [{
+            id: 'centerTextTauxT',
+            afterDraw(chart) {
+                const { ctx, chartArea: { width, height, top } } = chart;
+                const cx = width / 2 + chart.chartArea.left;
+                const cy = top + height / 2;
+                const lines = [
+                    { txt: `G: ${pG.toFixed(1)}%`, color: '#036c8c' },
+                    { txt: `F: ${pF.toFixed(1)}%`, color: '#e91e8c' },
+                ];
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const lineH = 14;
+                const startY = cy - (lines.length - 1) * lineH / 2;
+                lines.forEach((l, i) => {
+                    ctx.font = 'bold 10px Tahoma';
+                    ctx.fillStyle = l.color;
+                    ctx.fillText(l.txt, cx, startY + i * lineH);
+                });
+                ctx.restore();
+            }
+        }]
+    });
+}
 
 function renderStats() {
 // ── Orchestrateur principal des diagrammes et tableaux de statistiques 
@@ -3251,6 +3351,7 @@ function renderStats() {
     _statsAvancement(activeClasses);
     _statsTable(data, activeClasses);
     _statsChartAbsenceBySexe(data);
+    _statsChartTauxTParSexe(data);
 }
 
 
