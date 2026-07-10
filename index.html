@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.089''</title>
+    <title>SmartEPS v1.090''</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -144,6 +144,216 @@
         .menu-item-class:last-child { border-bottom: none; }
 
         .input-date::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; margin: 0; }
+
+    /* ============================================================
+   MODE SOMBRE — Équivalent au "force dark mode" du navigateur
+   ============================================================ */
+
+
+    /* 1. L'élément racine du mode sombre (appliqué sur le body) */
+    body.dark-mode {
+        /* Variables principales assombries */
+        --main-color1: #1f3a5f;
+        --main-color2: #3a6a9a;
+        --title-color1: #8a6eff;
+        --accent-color1: #5a6eff;
+        --dgrdbckgrnd1: linear-gradient(84deg, #0f1f2f 0%, #1f3f5f 73%, #3f4f8f 89%, #5f3f9f 100%);
+    
+        /* Correction cruciale du fond et du texte global */
+        background-color: #121212 !important;
+        background: #121212 !important;
+        color: #e0e0e0 !important;
+    }
+
+    /* 2. Le conteneur principal */
+    body.dark-mode .container {
+        background-color: #121212 !important; /* Force le même fond sombre pour boucher les trous */
+        background: #121212 !important;
+    }
+
+    /* En-tête */
+    body.dark-mode .header {
+        background: var(--dgrdbckgrnd1) !important;
+    }
+
+    /* Onglets */
+    body.dark-mode .tabs {
+        background: #1a1a2a !important;
+        border-bottom-color: #3a3a5a !important;
+    }
+    body.dark-mode .tab {
+        color: #aaa !important;
+    }
+    body.dark-mode .tab.active {
+        color: #fff !important;
+        border-bottom-color: var(--main-color2) !important;
+    }
+
+    /* Fieldset & légendes (Nettoyage des espaces et fonds) */
+    body.dark-mode fieldset {
+        background-color: #1a1a2a !important;
+        background: #1a1a2a !important;
+        border-color: #3a3a5a !important;
+        border: 1px solid #3a3a5a !important;
+    }
+    body.dark-mode legend {
+        color: var(--main-color2) !important;
+    }
+
+    /* Grilles et alignements (Empêche le blanc de transparaître dans les espaces 'gap') */
+    body.dark-mode .grid, 
+    body.dark-mode [class*="grid"],
+    body.dark-mode .stats-grid, 
+    body.dark-mode .main-grid {
+        background-color: #121212 !important;
+    }
+
+    /* Tableaux */
+    body.dark-mode .table-container {
+        background: #1e1e2e !important;
+        border-color: #3a3a5a !important;
+    }
+    body.dark-mode table th {
+        color: #f0f0f0 !important;
+        border-color: #3a3a5a !important;
+    }
+    body.dark-mode table td {
+        border-color: #3a3a5a !important;
+        color: #d0d0d0 !important;
+    }
+
+    /* Opacités des lignes d'élèves */
+    body.dark-mode .bg-row-G { background-color: rgba(53, 150, 214, 0.25) !important; }
+    body.dark-mode .bg-row-F { background-color: rgba(232, 67, 147, 0.25) !important; }
+    body.dark-mode .bg-row-D { background-color: rgba(40, 40, 40, 0.6) !important; }
+    body.dark-mode .bg-row-\? { background-color: rgba(150, 150, 150, 0.1) !important; }
+
+    /* Cellules de saisie */
+    body.dark-mode .input-cell { color: #e0e0e0 !important; }
+    body.dark-mode .input-cell[value="A"] { color: #ff1900 !important; }
+    body.dark-mode .input-cell[value="a"] { color: #ff9100 !important; }
+    body.dark-mode .input-cell[value="T"] { color: #6a8aff !important; }
+    body.dark-mode .input-cell[value="P"] { color: #aaaaaa !important; }
+    body.dark-mode .input-cell[value="M"] { color: #4caf50 !important; }
+    body.dark-mode .input-cell[value="R"] { color: #c5a500 !important; }
+    body.dark-mode .input-date { color: #ddd !important; }
+
+    /* Sélecteurs */
+    body.dark-mode select {
+        color: #e0e0e0 !important;
+        background: #2a2a3e !important;
+        border-color: #3a3a5a !important;
+    }
+
+    /* Boutons */
+    body.dark-mode button {
+        background: rgba(255,255,255,0.08) !important;
+        color: #e0e0e0 !important;
+        border-color: #3a3a5a !important;
+    }
+    body.dark-mode button:hover {
+        background: rgba(255,255,255,0.2) !important;
+    }
+    body.dark-mode .btn-retour {
+        background: var(--title-color1) !important;
+        color: white !important;
+    }
+    body.dark-mode .btn-retour:hover {
+        background: var(--main-color1) !important;
+    }
+
+    /* Menus déroulants */
+    body.dark-mode #dropdown-menu,
+    body.dark-mode #dropdown-classes,
+    body.dark-mode #context-menu {
+        background: #1e1e2e !important;
+        border-color: #3a3a5a !important;
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode .menu-item-class,
+    body.dark-mode .menu-item {
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode .menu-item-class:hover,
+    body.dark-mode .menu-item:hover {
+        background: #2a3a5a !important;
+        color: #fff !important;
+    }
+
+    /* Statistiques */
+    body.dark-mode .stats-card {
+        background: #1a1a2a !important;
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode .stats-card-title {
+        color: var(--main-color2) !important;
+    }
+    body.dark-mode #stats-table table th {
+        background: var(--main-color1) !important;
+    }
+
+    /* Picker */
+    body.dark-mode #status-picker {
+        background: #1e1e2e !important;
+        border-color: #6c5ce7 !important;
+    }
+
+    /* Boutons du status-picker (P, A, a, T, R, M) : couleurs fixes, non affectées par le dark mode */
+    body.dark-mode #status-picker button:nth-child(1) { background:#999999 !important; color:#fff !important; }
+    body.dark-mode #status-picker button:nth-child(2) { background:#ff1900 !important; color:#fff !important; }
+    body.dark-mode #status-picker button:nth-child(3) { background:#ff9100 !important; color:#fff !important; }
+    body.dark-mode #status-picker button:nth-child(4) { background:#1725e2 !important; color:#fff !important; }
+    body.dark-mode #status-picker button:nth-child(5) { background:#676e02 !important; color:#fff !important; }
+    body.dark-mode #status-picker button:nth-child(6) { background:#017201 !important; color:#fff !important; }
+    body.dark-mode #status-picker button:hover { filter: brightness(1.15); }
+    
+    
+    /* Focus observations */
+    body.dark-mode .obs-input:focus {
+        background-color: #2a2a3e !important;
+        outline-color: var(--main-color2) !important;
+    }
+
+    /* Pied de page et Éléments divers */
+    body.dark-mode footer {
+        background-color: #121212 !important; /* Même fond sombre */
+        color: rgba(255,255,255,0.3) !important;
+    }
+    body.dark-mode #user-display-header {
+        border-color: rgba(255,255,255,0.3) !important;
+    }
+    body.dark-mode h2 {
+        color: var(--title-color1) !important;
+    }
+    body.dark-mode a {
+        color: var(--main-color2) !important;
+    }
+
+    /* Saisie de texte */
+    body.dark-mode input[type="text"],
+    body.dark-mode input[type="number"] {
+        background: #2a2a3e !important;
+        color: #e0e0e0 !important;
+        border-color: #3a3a5a !important;
+    }
+    body.dark-mode input[type="text"]::placeholder,
+    body.dark-mode input[type="number"]::placeholder {
+        color: #888 !important;
+    }
+    body.dark-mode label {
+        color: #ccc !important;
+    }
+    body.dark-mode .section,
+    body.dark-mode #settings-content {
+        background: transparent !important;
+    }
+    body.dark-mode .stats-card canvas {
+        filter: brightness(0.9);
+    }
+    body.dark-mode .ui-switch {
+        --switch-bg: var(--title-color1);
+        --circle-bg: var(--main-color2);
+    }
     </style>
 </head>
 
@@ -185,7 +395,7 @@
     } 
     
     .container{padding:5px}
-    .fieldset{padding:5px;border:10px solid #ddd;border-radius:10px;background:#fff;margin-bottom:5px}  
+    .fieldset{padding:5px;border:10px solid #ddd;border-radius:10px;margin-bottom:5px}  
     
     /* Met en évidence la cellule active dans grille observation*/
     .obs-input:focus {
@@ -211,11 +421,79 @@
         background: var(--main-color1);
             color: wheat;
     }
+
+
+/* switch Dak Mode settings 👇 */
+
+/* From Uiverse.io by satyamchaudharydev */ 
+/* The switch - the box around the slider */
+.switchDmode {
+  display: block;
+  --height-of-switch: 32px;
+  /* size of sliding icon -- sun and moon */
+  --size-of-icon: 20px;
+  position: relative;
+  width: var(--width-of-switch);
+  height: var(--height-of-switch);
+}
+
+/* Hide default HTML checkbox */
+.switchDmode input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0px;
+  right: 0;
+  bottom: 0;
+  background-color: none;
+  transition: .4s;
+  border-radius: 30px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: var(--size-of-icon,1.4em);
+  width: var(--size-of-icon,1.4em);
+  border-radius: 20px;
+  left: var(--slider-offset,0.3em);
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(40deg,#ff0080,#ff8c00 70%);
+ transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #303136;
+}
+
+input:checked + .slider:before {
+  background: none;
+  /* change the value of second inset in box-shadow to change the angle and direction of the moon  */
+  box-shadow: inset -3px -2px 5px -2px #8983f7, inset -10px -4px 0 0 #a3dafb;
+}
+
+
     </style>
 	
 <div class="header" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: var(--dgrdbckgrnd1); color: white;">
     <div style="display: flex; align-items: center; gap: 15px;">
+        
         <span style="font-weight: bold;">📋 EPS WebApp</span>
+        
+        <label class="switchDmode " style="right: 15px; gap: 20px;">
+            <!-- From Uiverse.io by RiccardoRapelli --> 
+            <input type="checkbox">
+            <span class="slider"></span>
+        </label>
+
         <span id="lib-status" style="font-size:11px; background:rgba(255,255,255,0.15); padding:4px 12px; border-radius:15px; border: 1px solid rgba(255,255,255,0.1);">
             <!-- Chargement Lexique... -->
             ⌛ <span class="status-label">Chargement Lexique...</span>
@@ -380,7 +658,7 @@
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px;">
                 
-                <fieldset style="padding:15px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                <fieldset style="padding:15px; border:1px solid #ddd; border-radius:8px;">
                     <legend style="padding:0 10px; font-weight:bold; color:var(--main-color1);">🏫 Informations Générales</legend>
                     <div style="display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; margin-top: 10px;">
 
@@ -405,7 +683,7 @@
                     </div>
                 </fieldset>
 
-                <fieldset style="padding:15px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                <fieldset style="padding:15px; border:1px solid #ddd; border-radius:8px;">
     <legend style="padding:0 10px; font-weight:bold; color:var(--main-color1);">⚙️ Configuration cycle & séances</legend>
     
     <div style="display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: center; margin-top: 10px;">
@@ -463,7 +741,7 @@ function valLimtGrcT(input) {
 }
 </script>
 
-                <fieldset style="padding:15px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+                <fieldset style="padding:15px; border:1px solid #ddd; border-radius:8px;">
                     <legend style="padding:0 10px; font-weight:bold; color:var(--main-color1);">👥 Gestion des groupes</legend>
                     <div style="display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: center; margin-top: 10px;">
                         <label for="NbrGCls">Nbr Groupes Classe :</label>
@@ -642,7 +920,7 @@ function valLimtGrcT(input) {
     </div>
 
     <!-- TABLEAU RÉCAP PAR CLASSE -->
-    <div style="background:#fff; border-radius:10px; padding:12px; box-shadow:0 1px 4px rgba(0,0,0,0.1);">
+    <div style=" border-radius:10px; padding:12px; box-shadow:0 1px 4px rgba(0,0,0,0.1);">
         <div style="font-weight:bold; color:var(--main-color1); margin-bottom:8px; font-size:13px;">📊 Récapitulatif par classe</div>
         <div id="stats-table" style="overflow-x:auto;"></div>
     </div>
@@ -877,6 +1155,42 @@ let currentClass = null;
 let currentDisc = null;
 let classTargeted = null; 
 let isUpdating = false;
+
+// ============================================================
+// GESTION DU THÈME (CLAIR / SOMBRE)
+// ============================================================
+const THEME_KEY = 'eps_theme';
+const themeToggle = document.querySelector('.switchDmode input');
+
+function setTheme(theme) {
+    const isDark = theme === 'dark';
+    document.body.classList.toggle('dark-mode', isDark);
+    if (themeToggle) {
+        themeToggle.checked = isDark;
+    }
+    localStorage.setItem(THEME_KEY, theme);
+}
+
+function loadTheme() {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved) {
+        setTheme(saved);
+    } else {
+        // Par défaut : mode clair
+        setTheme('light');
+    }
+}
+
+// Écouter les changements du toggle
+if (themeToggle) {
+    themeToggle.addEventListener('change', function() {
+        const theme = this.checked ? 'dark' : 'light';
+        setTheme(theme);
+    });
+}
+
+// Charger le thème au démarrage
+loadTheme();
 
 
 async function loadLib() {
