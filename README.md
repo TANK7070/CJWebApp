@@ -91,4 +91,5 @@
 1.091	:
 	* correction bug calcule note, cycle et diagrammes pour college
 	* Taux d'absence par sexe
+	* Données au centre des doughnuts
 
