@@ -97,3 +97,5 @@
 	* masquer "T" dans menu statut pour les "D"
 	* Graphique "Taux de "Sans tenue (T)" par sexe"
 
+1.093	:
+	* Nbr d'elvs ayant la moyenne par sx
