@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.092</title>
+    <title>SmartEPS v1.093</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -883,6 +883,12 @@ function valLimtGrcT(input) {
             height: auto !important;
         }
     </style>
+
+        <!-- AVANCEMENT DES CYCLES -->
+        <div class="stats-card" style="margin-bottom:12px;">
+            <div class="stats-card-title">📅 Avancement des cycles</div>
+            <div id="stats-avancement"></div>
+        </div>
     <div class="stats-grid">
         <div class="stats-card">
             <div class="stats-card-title">📈 Distribution des notes finales</div>
@@ -900,14 +906,14 @@ function valLimtGrcT(input) {
             <div class="stats-card-title">📊 Plage des notes (min / moy / max)</div>
             <canvas id="chart-plage" style="width:100%;"></canvas>
         </div>
-            
-            <!-- AVANCEMENT DES CYCLES -->
-        <div class="stats-card" style="margin-bottom:12px;">
-            <div class="stats-card-title">📅 Avancement des cycles</div>
-            <div id="stats-avancement"></div>
+        <!-- Eleves ayant la moyenne par sexe -->
+        <div class="stats-card">
+            <div class="stats-card-title">🎓 Élèves ayant la moyenne</div>
+            <canvas id="chart-sexe-moyenne" style="width:100%;"></canvas>
         </div>
         
     </div>
+
     <div class="stats-grid">
         <div class="stats-card">
             <div class="stats-card-title">📋 Assiduité</div>
@@ -2661,6 +2667,7 @@ function _statsCollect(activeClasses) {
     // --- NOUVEAUX COMPTEURS pour les T par sexe (exclut D et ?) ---
     let seancesEffectivesG = 0, seancesEffectivesF = 0;
     let seancesTG = 0, seancesTF = 0;
+    let gAvecMoyenne = 0, fAvecMoyenne = 0;
 
     activeClasses.forEach(cn => {
         const cl = classesDB[cn];
@@ -2725,6 +2732,10 @@ function _statsCollect(activeClasses) {
                 const moy = finals.reduce((a,b) => a+b,0) / finals.length;
                 allFinalGrades.push(moy);
                 classFinals.push(moy);
+                if (moy >= 10) {
+                    if (sexe === 'G') gAvecMoyenne++;
+                    else if (sexe === 'F') fAvecMoyenne++;
+                }
             }
         });
 
@@ -2742,7 +2753,8 @@ function _statsCollect(activeClasses) {
              classMoyMap, totalDiscs, moyGlob,
              seancesEffectives, seancesP, seancesA, seancesT, seancesR,
              absencesG, absencesF, absencesD,
-             seancesEffectivesG, seancesEffectivesF, seancesTG, seancesTF };
+             seancesEffectivesG, seancesEffectivesF, seancesTG, seancesTF,
+             gAvecMoyenne, fAvecMoyenne };
 }
 
 function _statsCards(d, activeClasses) {
@@ -3058,7 +3070,7 @@ function _statsChartPlage(d) {
 }
 
 function _statsAvancement(activeClasses) {
-// Avancement des cycles
+    // Avancement des cycles
     const nbrTotal = getNbrSeances();
     const couleur = pct => pct >= 100 ? '#2ecc71' : pct >= 60 ? '#3498db' : pct >= 30 ? '#f39c12' : '#e74c3c';
     const avancements = [];
@@ -3069,7 +3081,7 @@ function _statsAvancement(activeClasses) {
             const effectuees = (cycleDates[disc] || []).filter(d => d && d.trim() !== '').length;
             if (effectuees === 0) return;
             const pct = Math.round((effectuees / nbrTotal) * 100);
-            avancements.push({ classe:cn, disc, effectuees, total:nbrTotal, pct });
+            avancements.push({ classe: cn, disc, effectuees, total: nbrTotal, pct });
         });
     });
 
@@ -3079,21 +3091,30 @@ function _statsAvancement(activeClasses) {
         return;
     }
 
-    avancements.sort((a,b) => a.classe.localeCompare(b.classe) || a.disc.localeCompare(b.disc));
-    document.getElementById('stats-avancement').innerHTML = avancements.map(av => `
-        <div style="margin-bottom:10px;">
-            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
-                <span><strong>${av.classe}</strong> — ${av.disc}</span>
-                <span style="color:${couleur(av.pct)}; font-weight:bold;">
-                    ${av.effectuees} / ${av.total} séances (${av.pct}%)
-                </span>
+    avancements.sort((a, b) => a.classe.localeCompare(b.classe) || a.disc.localeCompare(b.disc));
+
+    document.getElementById('stats-avancement').innerHTML = avancements.map(av => {
+        const coul = couleur(av.pct);
+        // Génération des segments : un par séance prévue
+        const segments = Array.from({ length: av.total }, (_, i) => {
+            const isDone = i < av.effectuees;
+            return `<div style="flex:1; height:100%; background:${isDone ? coul : '#e0e0e0'}; border-radius:2px; transition:background 0.3s;"></div>`;
+        }).join('');
+
+        return `
+            <div style="margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
+                    <span><strong>${av.classe}</strong> — ${av.disc}</span>
+                    <span style="color:${coul}; font-weight:bold;">
+                        ${av.effectuees} / ${av.total} séances (${av.pct}%)
+                    </span>
+                </div>
+                <div style="display:flex; gap:2px; height:10px; border-radius:4px; overflow:hidden;">
+                    ${segments}
+                </div>
             </div>
-            <div style="background:#eee; border-radius:6px; height:10px; overflow:hidden;">
-                <div style="width:${Math.min(av.pct,100)}%; height:100%;
-                            background:${couleur(av.pct)}; border-radius:6px;
-                            transition:width 0.4s ease;"></div>
-            </div>
-        </div>`).join('');
+        `;
+    }).join('');
 }
 
 function _statsTable(d, activeClasses) {
@@ -3285,6 +3306,75 @@ function _statsChartTauxTParSexe(d) {
     });
 }
 
+function _statsChartSexeMoyenne(d) {
+    _destroyChart('sexe-moyenne');
+    if (d.totalG + d.totalF === 0) return;
+
+    const gSansMoyenne = d.totalG - d.gAvecMoyenne;
+    const fSansMoyenne = d.totalF - d.fAvecMoyenne;
+
+    const ctx = document.getElementById('chart-sexe-moyenne').getContext('2d');
+    _statsCharts['sexe-moyenne'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Garçons', 'Filles'],
+            datasets: [
+                {
+                    label: 'Avec moyenne',
+                    data: [d.gAvecMoyenne, d.fAvecMoyenne],
+                    backgroundColor: ['rgba(3,108,140,0.85)', 'rgba(233,30,140,0.85)'],
+                    borderColor: ['#036c8c', '#e91e8c'],
+                    borderWidth: 1, borderRadius: 4
+                },
+                {
+                    label: 'Sans moyenne',
+                    data: [gSansMoyenne, fSansMoyenne],
+                    backgroundColor: ['rgba(3,108,140,0.25)', 'rgba(233,30,140,0.25)'],
+                    borderColor: ['#036c8c', '#e91e8c'],
+                    borderWidth: 1, borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: true,
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 },
+                     title: { display: false, text: 'Nb élèves' } }
+            },
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 } } },
+                tooltip: { callbacks: { label: (ctx) => {
+                    const total = ctx.dataIndex === 0 ? d.totalG : d.totalF;
+                    const pct = total > 0 ? ((ctx.parsed.y / total) * 100).toFixed(1) : 0;
+                    return ` ${ctx.dataset.label} : ${ctx.parsed.y} (${pct}%)`;
+                }}}
+            }
+        },
+        plugins: [{
+            id: 'labelsSexeMoyenne',
+            afterDraw(chart) {
+                const { ctx } = chart;
+                [0, 1].forEach(i => {
+                    const total = i === 0 ? d.totalG : d.totalF;
+                    const avecMoy = i === 0 ? d.gAvecMoyenne : d.fAvecMoyenne;
+                    const pct = total > 0 ? ((avecMoy / total) * 100).toFixed(1) : 0;
+                    const bar = chart.getDatasetMeta(0).data[i];
+                    if (!bar) return;
+                    const barH = bar.base - bar.y;
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 10px Tahoma';
+                    if (barH > 14) ctx.fillText(`${avecMoy} (${pct}%)`, bar.x, (bar.y + bar.base) / 2);
+                    ctx.restore();
+                });
+            }
+        }]
+    });
+}
+
 function renderStats() {
 // ── Orchestrateur principal des diagrammes et tableaux de statistiques 
     if (!document.getElementById('sec-stats')?.classList.contains('active')) return;
@@ -3342,16 +3432,20 @@ function renderStats() {
 
     // --- Collecte des données et rendu ---
     const data = _statsCollect(activeClasses);
-    _statsCards(data, activeClasses);
-    _statsChartNotes(data);
-    _statsChartDiscs(data);
-    _statsChartAssiduite(data);
-    _statsChartGenre(data);
-    _statsChartPlage(data);
-    _statsAvancement(activeClasses);
-    _statsTable(data, activeClasses);
-    _statsChartAbsenceBySexe(data);
-    _statsChartTauxTParSexe(data);
+    const fns = [
+        () => _statsCards(data, activeClasses),
+        () => _statsChartNotes(data),
+        () => _statsChartDiscs(data),
+        () => _statsChartAssiduite(data),
+        () => _statsChartGenre(data),
+        () => _statsChartPlage(data),
+        () => _statsAvancement(activeClasses),
+        () => _statsTable(data, activeClasses),
+        () => _statsChartAbsenceBySexe(data),
+        () => _statsChartTauxTParSexe(data),
+        () => _statsChartSexeMoyenne(data),
+    ];
+    fns.forEach((fn, i) => { try { fn(); } catch(e) { console.error('Stats fn #'+i+' error:', e); } });
 }
 
 
