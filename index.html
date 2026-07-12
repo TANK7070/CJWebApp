@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.093</title>
+    <title>SmartEPS v1.094'</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -531,6 +531,7 @@ input:checked + .slider:before {
         <div class="menu-item-class" onclick=" saveToExcel(true); closeMenu();">+💾Sauvegarde</div>
         <div class="menu-item-class" onclick="importFromExcel(); closeMenu();">🔗Lier/Importer</div>
         <div class="menu-item-class" onclick="closeMenu(); printPage();">🖨️Impression</div>
+        <div class="menu-item-class" onclick="closeMenu(); showTab('stats');">📊Statistiques</div>
         <div class="menu-item-class" onclick="showTab('settings'); closeMenu();">⚙️Paramètres</div >
     </div>
 </div>
@@ -846,6 +847,7 @@ function valLimtGrcT(input) {
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
         <h2 style="color:var(--main-color1); margin-bottom:2px">📊 Stats</h2>
         <div style="display:flex; margin-left: auto; margin-right: 5px;">
+            <button style="background: var(--main-color2); padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px; margin-right: 5px;" onclick="printPage()">🖨️</button>
             <select id="stats-filter-class" onchange="renderStats()" style="padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px;">
                 <option value="__all__">Toutes les classes</option>
             </select>
@@ -3449,12 +3451,42 @@ function renderStats() {
 }
 
 
-function printPage() {
-    if (!currentClass || !currentDisc) {
-        alert("Veuillez d'abord sélectionner une classe et une discipline.");
-        return;
-    }
+// ============================================================
+// IMPRESSION — fonctions séparées
+// ============================================================
 
+/**
+ * Fonction d'impression universelle.
+ * Reçoit un HTML complet (avec <!DOCTYPE>, <html>, <head>, <body>)
+ * et l'imprime via une iframe cachée.
+ * Le dialogue du navigateur propose toujours "Enregistrer en PDF"
+ * comme destination d'impression (natif sur tous les OS modernes).
+ * 
+ * @param {string} html  - HTML complet de la page à imprimer
+ */
+function printAsPDF(html) {
+    let iframe = document.getElementById('print-iframe');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'print-iframe';
+        iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:none;';
+        document.body.appendChild(iframe);
+    }
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.contentWindow.onload = () => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+    };
+}
+
+/**
+ * Construit le HTML de la fiche cycle pour la classe/discipline active.
+ * @returns {string} HTML complet prêt à imprimer
+ */
+function buildCyclePage() {
     const cl = classesDB[currentClass];
     const students = cl.students || [];
     const dates = cl.cycleDates?.[currentDisc] || [];
@@ -3462,54 +3494,49 @@ function printPage() {
     const discTitle = OBSERVATION_DATA[currentDisc]?.title || currentDisc;
     const aujourdhui = new Date();
     const annee = aujourdhui.getFullYear();
-    // Si on est avant septembre (mois 8), l'année scolaire a commencé l'année d'avant
     const AS = aujourdhui.getMonth() < 8 ? `${annee - 1} / ${annee}` : `${annee} / ${annee + 1}`;
 
-    // ── En-têtes séances dynamiques ──────────────────────────────────────────
     const seancesHeaders = Array.from({length: nbrS}, (_, i) =>
         `<th class="small-text">S${i+1}</th>`
     ).join('');
 
-    // ── Ligne dates (Formatées en JJ/MM/AA) ───────────────────────────────────
     const datesRow = Array.from({length: nbrS}, (_, i) => {
         const d = dates[i] || '';
         let fmt = '';
         if (d) {
-            const parts = d.split('-'); // [AAAA, MM, JJ]
-            const aa = parts[0].slice(-2); // Récupère les 2 derniers chiffres de l'année
-            fmt = `${parts[2]}/${parts[1]}/${aa}`; // Assemble en JJ/MM/AA
+            const parts = d.split('-');
+            fmt = `${parts[2]}/${parts[1]}/${parts[0].slice(-2)}`;
         }
         return `<td class="small-text date-cell">${fmt}</td>`;
     }).join('');
 
-    // ── Lignes élèves ─────────────────────────────────────────────────────────
     const studentRows = students.map((s, i) => {
         const g = s.grades?.[currentDisc] || { s: [], c: [], f: '' };
         const seanceCells = Array.from({length: nbrS}, (_, j) => {
             const val = g.s?.[j] || '';
             return `<td class="small-text">${val}</td>`;
         }).join('');
-
         const idx = s.index || '?';
+        const cv = (v) => (v !== undefined && v !== '') ? v : '';
         return `
         <tr>
             <td>${i + 1}</td>
             <td class="idx-cell">${idx}</td>
             <td class="left-align nom-cell">${s.nom}</td>
             ${seanceCells}
-            <td>${g.c[0] !== undefined && g.c[0] !== '' ? g.c[0] : ''}</td>
-            <td>${g.c[1] !== undefined && g.c[1] !== '' ? g.c[1] : ''}</td>
-            <td>${g.c[2] !== undefined && g.c[2] !== '' ? g.c[2] : ''}</td>
-            <td>${g.c[3] !== undefined && g.c[3] !== '' ? g.c[3] : ''}</td>
-            <td><strong>${g.f !== undefined && g.f !== '' ? g.f : ''}</strong></td>
+            <td>${cv(g.c[0])}</td>
+            <td>${cv(g.c[1])}</td>
+            <td>${cv(g.c[2])}</td>
+            <td>${cv(g.c[3])}</td>
+            <td><strong>${cv(g.f)}</strong></td>
         </tr>`;
     }).join('');
 
-    // Calcul dynamique des largeurs (A4 paysage = 281mm utilisables)
-    const seanceW = Math.floor((281 - 94) / (nbrS + 4)); 
-    const nomW    = 281 - 94 - (nbrS * seanceW);         
+    const seanceW = Math.floor((281 - 94) / (nbrS + 4));
+    const nomW    = 281 - 94 - (nbrS * seanceW);
+    const seanceCols = Array.from({length: nbrS}, () => '<col class="c-s">').join('');
 
-    const html = `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -3525,8 +3552,8 @@ function printPage() {
         col.c-s    { width: ${seanceW}mm; }
         col.c-eval { width: 14mm; }
         col.c-nf   { width: 16mm; }
-        th, td { border: 1px solid black; padding: 1px 2px; text-align: center; vertical-align: middle;
-                 overflow: hidden; white-space: nowrap; }
+        th, td { border: 1px solid black; padding: 1px 2px; text-align: center;
+                 vertical-align: middle; overflow: hidden; white-space: nowrap; }
         .left-align  { text-align: left; padding-left: 3px; }
         .right-align { text-align: right; }
         .small-text  { font-size: 7pt; }
@@ -3534,10 +3561,8 @@ function printPage() {
         .nom-cell    { text-align: left; font-size: 8pt; white-space: nowrap;
                        overflow: hidden; text-overflow: ellipsis; }
         .idx-cell    { font-size: 7.5pt; font-weight: bold; }
-        .vertical-text {
-            writing-mode: vertical-rl; transform: rotate(180deg);
-            white-space: nowrap; padding: 4px 1px; font-size: 7pt;
-        }
+        .vertical-text { writing-mode: vertical-rl; transform: rotate(180deg);
+                         white-space: nowrap; padding: 4px 1px; font-size: 7pt; }
         tr:nth-child(odd)  td { background: #fff; }
         tr:nth-child(even) td { background: #f0f0f0; }
         @media print {
@@ -3549,10 +3574,8 @@ function printPage() {
 <body>
 <table>
     <colgroup>
-        <col class="c-no">
-        <col class="c-sx">
-        <col class="c-nom">
-        ${Array.from({length: nbrS}, () => '<col class="c-s">').join('')}
+        <col class="c-no"><col class="c-sx"><col class="c-nom">
+        ${seanceCols}
         <col class="c-eval"><col class="c-eval"><col class="c-eval"><col class="c-eval">
         <col class="c-nf">
     </colgroup>
@@ -3589,34 +3612,136 @@ function printPage() {
 </table>
 </body>
 </html>`;
+}
 
-    // ── Gestion de l'Iframe d'impression ──────────────────────────────────────
-    // 1. Récupérer ou créer l'iframe cachée dans la page actuelle
-    let iframe = document.getElementById('print-iframe');
-    if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'print-iframe';
-        // Masquage complet de l'iframe à l'écran
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = 'none';
-        document.body.appendChild(iframe);
+/**
+ * Construit la page stats en capturant les canvas Chart.js en images base64.
+ * @returns {string} HTML complet prêt à imprimer
+ */
+function buildStatsPage() {
+    // ── Cartes synthèse ───────────────────────────────────────────────────────
+    const cardsHTML = document.getElementById('stats-cards')?.innerHTML || '';
+
+    // ── Capture des canvas → images base64 ───────────────────────────────────
+    const chartIds = [
+        { id: 'chart-notes',        title: '📈 Distribution des notes' },
+        { id: 'chart-discs',        title: '🎯 Moyennes par discipline' },
+        { id: 'chart-plage',        title: '📊 Plage des notes' },
+        { id: 'chart-sexe-moyenne', title: '🎓 Élèves ayant la moyenne par sexe' },
+        { id: 'chart-assiduite',    title: '📋 Assiduité' },
+        { id: 'chart-genre',        title: '👥 Répartition G / F / D' },
+        { id: 'chart-absence-sexe', title: '📊 Absences par sexe' },
+        { id: 'chart-taux-t-sexe',  title: '📊 Taux de sans tenue par sexe' },
+    ];
+
+    const chartsHTML = chartIds.map(({ id, title }) => {
+        const canvas = document.getElementById(id);
+        if (!canvas) return '';
+        const img = canvas.toDataURL('image/png');
+        return `
+        <div class="chart-block">
+            <div class="chart-title">${title}</div>
+            <img src="${img}" style="width:100%; height:auto;">
+        </div>`;
+    }).join('');
+
+    // ── Avancement des cycles ─────────────────────────────────────────────────
+    const avancHTML = document.getElementById('stats-avancement')?.innerHTML || '';
+
+    // ── Tableau récap ─────────────────────────────────────────────────────────
+    const tableHTML = document.getElementById('stats-table')?.innerHTML || '';
+
+    // ── Filtre actif ──────────────────────────────────────────────────────────
+    const sel = document.getElementById('stats-filter-class');
+    const filterLabel = sel?.value === '__all__' ? 'Toutes les classes' : (sel?.value || '');
+    const prof = appSettings.User || '';
+    const today = new Date().toLocaleDateString('fr-FR');
+
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Statistiques — ${filterLabel}</title>
+    <style>
+        @page { size: A4 portrait; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Tahoma, sans-serif; font-size: 9pt; color: #000; margin: 0; }
+        h1 { font-size: 13pt; color: #036c8c; margin: 0 0 4px 0; }
+        .meta { font-size: 8pt; color: #555; margin-bottom: 10px; }
+        .cards { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .cards > div {
+            flex: 1;
+            min-width: 80px;
+            background: #f0f0f0;
+            border: 1px solid #036c8c;
+            border-radius: 8px;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        /* FORCE le texte en noir malgré les styles inline */
+        .cards > div,
+        .cards > div * {
+            color: #000 !important;
+        }
+        .cards > div .val { font-size: 14pt; font-weight: bold; }
+        .cards > div .lbl { font-size: 7pt; opacity: 0.85; }
+        .cards > div .detail { font-size: 7pt; opacity: 0.7; margin-top: 2px; }
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .chart-block { border: 1px solid #ddd; border-radius: 6px; padding: 6px; }
+        .chart-title { font-size: 8pt; font-weight: bold; color: #036c8c; margin-bottom: 4px; }
+        .section-title { font-size: 10pt; font-weight: bold; color: #036c8c;
+                         border-bottom: 1px solid #036c8c; margin: 10px 0 6px 0; padding-bottom: 2px; }
+        .progress-bar-bg { background: #eee; border-radius: 4px; height: 8px; overflow: hidden; margin-top: 2px; }
+        .progress-bar    { height: 100%; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+        th { background: #036c8c; color: #fff; padding: 4px 6px; }
+        td { padding: 4px 6px; border: 1px solid #eee; text-align: center; }
+        tr:nth-child(even) td { background: #f7f7f7; }
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .chart-block { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 Statistiques EPS</h1>
+    <div class="meta">
+        ${prof ? `Prof : <strong>${prof}</strong> &nbsp;|&nbsp; ` : ''}
+        Filtre : <strong>${filterLabel}</strong> &nbsp;|&nbsp; Édité le : <strong>${today}</strong>
+    </div>
+
+    <div class="cards">${cardsHTML}</div>
+
+    <div class="section-title">📅 Avancement des cycles</div>
+    <div>${avancHTML}</div>
+
+    <div class="section-title">📊 Récapitulatif par classe</div>
+    ${tableHTML}
+
+    <div class="section-title">Graphiques</div>
+    <div class="charts-grid">${chartsHTML}</div>
+
+    
+</body>
+</html>`;
+}
+
+/**
+ * Orchestre : imprime selon l'onglet actif (WYSIWYG).
+ */
+function printPage() {
+    const activeSection = document.querySelector('.section.active')?.id;
+
+    if (activeSection === 'sec-cycle') {
+        if (!currentClass || !currentDisc) { alert("Sélectionnez d'abord une classe et une discipline."); return; }
+        printAsPDF(buildCyclePage());
     }
-
-    // 2. Injecter le code HTML généré dans l'iframe
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    // 3. Déclencher la boîte de dialogue d'impression dès que le contenu est chargé
-    iframe.contentWindow.onload = () => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-    };
+    else if (activeSection === 'sec-stats') {
+        printAsPDF(buildStatsPage());
+    }
+    else {
+        alert("Impression non disponible sur cet onglet pour l'instant.");
+    }
 }
 
 
