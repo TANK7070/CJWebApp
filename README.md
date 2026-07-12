@@ -99,3 +99,7 @@
 
 1.093	:
 	* Nbr d'elvs ayant la moyenne par sx
+
+1.094	:
+	*impression universelle en PDF
+	*impression: -Journal cycle -Page Stats
