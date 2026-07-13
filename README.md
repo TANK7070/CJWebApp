@@ -102,4 +102,5 @@
 
 1.094	:
 	*impression universelle en PDF
+	*Liste des disp. dans "Stats"
 	*impression: -Journal cycle -Page Stats
