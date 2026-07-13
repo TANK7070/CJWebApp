@@ -2869,7 +2869,7 @@ function _statsChartAssiduite(d) {
     _statsCharts['assiduite'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Présent (P)', 'Absent (A)', 'Sans tenue (T)', 'Retard (R)'],
+            // labels: ['Présent', 'Absent', 'Sans tenue', 'Retard'],
             datasets: [{
                 data: [pP, pA, pT, pR],
                 backgroundColor: ['#2ecc71', '#e74c3c', '#3498db', '#f39c12'],
@@ -2951,7 +2951,7 @@ function _statsChartGenre(d) {
     _statsCharts['genre'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Garçons', 'Filles', 'Dispensés'],
+            // labels: ['Garçons', 'Filles', 'Dispensés'],
             datasets: [{
                 data: [pG, pF, pD],
                 backgroundColor: ['#036c8c', '#e91e8c', '#95a5a6'],
@@ -3069,7 +3069,7 @@ function _statsChartPlage(d) {
                 ctx.fillStyle = '#e74c3c';
                 ctx.font = 'bold 10pt Segoe UI, Tahoma';
                 ctx.textAlign = 'center';
-                ctx.fillText(`Moyenne : ${plagMoy.toFixed(2)}/20`, xPos, barTop - 6);
+                ctx.fillText(`Moyenne : ${plagMoy.toFixed(2)}`, xPos, barTop - 6);
                 ctx.restore();
             }
         }]
@@ -3147,7 +3147,7 @@ function _statsChartAbsenceBySexe(d) {
     _statsCharts['absence-sexe'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Garçons (G)', 'Filles (F)', 'Dispensés (D)'],
+            // labels: ['Garçons', 'Filles', 'Dispensés'],
             datasets: [{
                 data: data,
                 backgroundColor: ['#036c8c', '#e91e8c', '#95a5a6'],
@@ -3222,7 +3222,7 @@ function _statsChartTauxTParSexe(d) {
     _statsCharts['taux-t-sexe'] = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Garçons (T)', 'Filles (T)'],
+            // labels: ['Garçons (T)', 'Filles (T)'],
             datasets: [{
                 data: [pG, pF],
                 backgroundColor: ['#036c8c', '#e91e8c'],
@@ -3402,7 +3402,7 @@ function _statsDispenses(activeClasses) {
             <tr style="background:var(--main-color1); color:#fff;">
                 <th style="padding:6px 8px; text-align:left;">Classe</th>
                 <th style="padding:6px 8px; text-align:left;">Nom & Prénom</th>
-                <th style="padding:6px 8px; text-align:center;">Sexe</th>
+                <th style="padding:6px 8px; text-align:left;">Sexe</th>
             </tr>
         </thead>
         <tbody>`;
@@ -3410,9 +3410,9 @@ function _statsDispenses(activeClasses) {
     dispenses.forEach(d => {
         const bgClass = d.sexe === 'G' ? 'bg-row-G' : d.sexe === 'F' ? 'bg-row-F' : '';
         html += `<tr class="${bgClass}">
-            <td style="padding:5px 8px; border:1px solid #eee; font-weight:bold;">${d.classe}</td>
-            <td style="padding:5px 8px; border:1px solid #eee;">${d.nom}</td>
-            <td style="padding:5px 8px; border:1px solid #eee; text-align:center; font-weight:bold;">${d.sexe}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; font-weight:bold;text-align:left;">${d.classe}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; text-align:left;">${d.nom}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; text-align:left; font-weight:bold;">${d.sexe}</td>
         </tr>`;
     });
 
