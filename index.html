@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.094''</title>
+    <title>SmartEPS v1.095'</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -3565,7 +3565,32 @@ function printAsPDF(html) {
  * Construit le HTML de la fiche cycle pour la classe/discipline active.
  * @returns {string} HTML complet prêt à imprimer
  */
-function buildCyclePage() {
+// ── Moteur de remplacement de templates ──────────────────────────────────────
+// Remplace tous les {{PLACEHOLDER}} dans un template HTML par les valeurs fournies.
+// @param {string} tpl    - HTML du template (avec placeholders)
+// @param {Object} data   - { PLACEHOLDER: valeur, ... }
+// @returns {string}      - HTML rempli
+function fillTemplate(tpl, data) {
+    return tpl.replace(/\{\{(\w+)\}\}/g, (_, key) =>
+        data[key] !== undefined ? data[key] : `{{${key}}}`
+    );
+}
+
+// ── Chargement et cache des templates ────────────────────────────────────────
+const _templateCache = {};
+
+async function loadTemplate(name) {
+    if (_templateCache[name]) return _templateCache[name];
+    const url = `templates/${name}.html`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`Template introuvable : ${url}`);
+    const tpl = await resp.text();
+    _templateCache[name] = tpl;
+    return tpl;
+}
+
+// ── Prépare les données du cycle courant ─────────────────────────────────────
+function _prepareCycleData() {
     const cl = classesDB[currentClass];
     const students = cl.students || [];
     const dates = cl.cycleDates?.[currentDisc] || [];
@@ -3575,122 +3600,57 @@ function buildCyclePage() {
     const annee = aujourdhui.getFullYear();
     const AS = aujourdhui.getMonth() < 8 ? `${annee - 1} / ${annee}` : `${annee} / ${annee + 1}`;
 
+    const seanceCols    = Array.from({length: nbrS}, () => '<col class="c-s">').join('');
     const seancesHeaders = Array.from({length: nbrS}, (_, i) =>
-        `<th class="small-text">S${i+1}</th>`
-    ).join('');
+        `<th class="small-text">S${i+1}</th>`).join('');
 
     const datesRow = Array.from({length: nbrS}, (_, i) => {
         const d = dates[i] || '';
         let fmt = '';
-        if (d) {
-            const parts = d.split('-');
-            fmt = `${parts[2]}/${parts[1]}/${parts[0].slice(-2)}`;
-        }
+        if (d) { const p = d.split('-'); fmt = `${p[2]}/${p[1]}/${p[0].slice(-2)}`; }
         return `<td class="small-text date-cell">${fmt}</td>`;
     }).join('');
 
+    const cv = (v) => (v !== undefined && v !== '') ? v : '';
     const studentRows = students.map((s, i) => {
         const g = s.grades?.[currentDisc] || { s: [], c: [], f: '' };
-        const seanceCells = Array.from({length: nbrS}, (_, j) => {
-            const val = g.s?.[j] || '';
-            return `<td class="small-text">${val}</td>`;
-        }).join('');
-        const idx = s.index || '?';
-        const cv = (v) => (v !== undefined && v !== '') ? v : '';
+        const seanceCells = Array.from({length: nbrS}, (_, j) =>
+            `<td class="small-text">${g.s?.[j] || ''}</td>`).join('');
         return `
         <tr>
             <td>${i + 1}</td>
-            <td class="idx-cell">${idx}</td>
+            <td class="idx-cell">${s.index || '?'}</td>
             <td class="left-align nom-cell">${s.nom}</td>
             ${seanceCells}
-            <td>${cv(g.c[0])}</td>
-            <td>${cv(g.c[1])}</td>
-            <td>${cv(g.c[2])}</td>
-            <td>${cv(g.c[3])}</td>
+            <td>${cv(g.c[0])}</td><td>${cv(g.c[1])}</td>
+            <td>${cv(g.c[2])}</td><td>${cv(g.c[3])}</td>
             <td><strong>${cv(g.f)}</strong></td>
         </tr>`;
     }).join('');
 
     const seanceW = Math.floor((281 - 94) / (nbrS + 4));
     const nomW    = 281 - 94 - (nbrS * seanceW);
-    const seanceCols = Array.from({length: nbrS}, () => '<col class="c-s">').join('');
 
-    return `<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Cycle ${discTitle} — ${currentClass}</title>
-    <style>
-        @page { size: A4 landscape; margin: 5mm; }
-        * { box-sizing: border-box; }
-        body { font-family: 'Tahoma', 'Calibri', sans-serif; font-size: 9pt; color: black; margin: 0; }
-        table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-        col.c-no   { width: 12mm; }
-        col.c-sx   { width: 10mm; }
-        col.c-nom  { width: ${nomW}mm; }
-        col.c-s    { width: ${seanceW}mm; }
-        col.c-eval { width: 14mm; }
-        col.c-nf   { width: 16mm; }
-        th, td { border: 1px solid black; padding: 1px 2px; text-align: center;
-                 vertical-align: middle; overflow: hidden; white-space: nowrap; }
-        .left-align  { text-align: left; padding-left: 3px; }
-        .right-align { text-align: right; }
-        .small-text  { font-size: 7pt; }
-        .date-cell   { font-size: 6.5pt; }
-        .nom-cell    { text-align: left; font-size: 8pt; white-space: nowrap;
-                       overflow: hidden; text-overflow: ellipsis; }
-        .idx-cell    { font-size: 7.5pt; font-weight: bold; }
-        .vertical-text { writing-mode: vertical-rl; transform: rotate(180deg);
-                         white-space: nowrap; padding: 4px 1px; font-size: 7pt; }
-        tr:nth-child(odd)  td { background: #fff; }
-        tr:nth-child(even) td { background: #f0f0f0; }
-        @media print {
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            tr { page-break-inside: avoid; }
-        }
-    </style>
-</head>
-<body>
-<table>
-    <colgroup>
-        <col class="c-no"><col class="c-sx"><col class="c-nom">
-        ${seanceCols}
-        <col class="c-eval"><col class="c-eval"><col class="c-eval"><col class="c-eval">
-        <col class="c-nf">
-    </colgroup>
-    <tr>
-        <td colspan="3" class="right-align"><strong>Cycle :</strong> ${discTitle}</td>
-        <td colspan="${nbrS}"></td>
-        <td colspan="2" class="right-align"><strong>AS :</strong></td>
-        <td colspan="3">${AS}</td>
-    </tr>
-    <tr>
-        <th rowspan="4">N°</th>
-        <th rowspan="4">Sx</th>
-        <th rowspan="2">${currentClass}</th>
-        <th colspan="${nbrS}">Contrôle — Assiduité</th>
-        <th colspan="4">Evaluation</th>
-        <th rowspan="4">Note<br>Finale</th>
-    </tr>
-    <tr>
-        ${seancesHeaders}
-        <th rowspan="3" class="vertical-text">Comp.</th>
-        <th rowspan="3" class="vertical-text">Con.</th>
-        <th rowspan="3" class="vertical-text">C. Mot.</th>
-        <th rowspan="3" class="vertical-text">H. Mot.</th>
-    </tr>
-    <tr>
-        <td class="left-align small-text"><strong>Nom & Prénom</strong></td>
-        <td colspan="${nbrS - 1}"></td>
-    </tr>
-    <tr>
-        <td class="left-align date-cell"><strong>Date</strong></td>
-        ${datesRow}
-    </tr>
-    ${studentRows}
-</table>
-</body>
-</html>`;
+    return {
+        CLASSE:          currentClass,
+        DISCIPLINE:      discTitle,
+        AS,
+        NBR_S:           nbrS,
+        NBR_S_MINUS_1:   nbrS - 1,
+        COL_NOM_W:       nomW,
+        COL_S_W:         seanceW,
+        SEANCE_COLS:     seanceCols,
+        SEANCES_HEADERS: seancesHeaders,
+        DATES_ROW:       datesRow,
+        STUDENT_ROWS:    studentRows,
+    };
+}
+
+// ── Charge le template cycle, le remplit, le retourne ─────────────────────────
+async function buildCyclePage() {
+    const tpl  = await loadTemplate('cycle');
+    const data = _prepareCycleData();
+    return fillTemplate(tpl, data);
 }
 
 /**
@@ -3817,7 +3777,7 @@ function printPage() {
 
     if (activeSection === 'sec-cycle') {
         if (!currentClass || !currentDisc) { alert("Sélectionnez d'abord une classe et une discipline."); return; }
-        printAsPDF(buildCyclePage());
+        buildCyclePage().then(html => printAsPDF(html)).catch(e => alert("Erreur chargement template cycle : " + e.message));
     }
     else if (activeSection === 'sec-stats') {
         printAsPDF(buildStatsPage());
