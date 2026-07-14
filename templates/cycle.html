@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Cycle {{DISCIPLINE}} à {{CLASSE}}</title>
+    <style>
+        @page { size: A4 landscape; margin: 5mm; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Tahoma', 'Calibri', sans-serif; font-size: 9pt; color: black; margin: 0; }
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+        col.c-no   { width: 12mm; }
+        col.c-sx   { width: 10mm; }
+        col.c-nom  { width: {{COL_NOM_W}}mm; }
+        col.c-s    { width: {{COL_S_W}}mm; }
+        col.c-eval { width: 14mm; }
+        col.c-nf   { width: 16mm; }
+        th, td { border: 1px solid black; padding: 1px 2px; text-align: center;
+                 vertical-align: middle; overflow: hidden; white-space: nowrap; }
+        .left-align  { text-align: left; padding-left: 3px; }
+        .right-align { text-align: right; }
+        .small-text  { font-size: 7pt; }
+        .date-cell   { font-size: 6.5pt; }
+        .nom-cell    { text-align: left; font-size: 8pt; white-space: nowrap;
+                       overflow: hidden; text-overflow: ellipsis; }
+        .idx-cell    { font-size: 7.5pt; font-weight: bold; }
+        .vertical-text { writing-mode: vertical-rl; transform: rotate(180deg);
+                         white-space: nowrap; padding: 4px 1px; font-size: 7pt; }
+        tr:nth-child(odd)  td { background: #fff; }
+        tr:nth-child(even) td { background: #f0f0f0; }
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            tr { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+<table>
+    <colgroup>
+        <col class="c-no"><col class="c-sx"><col class="c-nom">
+        {{SEANCE_COLS}}
+        <col class="c-eval"><col class="c-eval"><col class="c-eval"><col class="c-eval">
+        <col class="c-nf">
+    </colgroup>
+    <tr>
+        <td colspan="3" class="right-align"><strong>Cycle :</strong> {{DISCIPLINE}}</td>
+        <td colspan="{{NBR_S}}"></td>
+        <td colspan="2" class="right-align"><strong>AS :</strong></td>
+        <td colspan="3">{{AS}}</td>
+    </tr>
+    <tr>
+        <th rowspan="4">N°</th>
+        <th rowspan="4">Sx</th>
+        <th rowspan="2">{{CLASSE}}</th>
+        <th colspan="{{NBR_S}}">Contrôle à Assiduité</th>
+        <th colspan="4">Evaluation</th>
+        <th rowspan="4">Note<br>Finale</th>
+    </tr>
+    <tr>
+        {{SEANCES_HEADERS}}
+        <th rowspan="3" class="vertical-text">Comp.</th>
+        <th rowspan="3" class="vertical-text">Con.</th>
+        <th rowspan="3" class="vertical-text">C. Mot.</th>
+        <th rowspan="3" class="vertical-text">H. Mot.</th>
+    </tr>
+    <tr>
+        <td class="left-align small-text"><strong>Nom &amp; Prénom</strong></td>
+        <td colspan="{{NBR_S_MINUS_1}}"></td>
+    </tr>
+    <tr>
+        <td class="left-align date-cell"><strong>Date</strong></td>
+        {{DATES_ROW}}
+    </tr>
+    {{STUDENT_ROWS}}
+</table>
+</body>
+</html>
