@@ -104,3 +104,10 @@
 	*impression universelle en PDF
 	*Liste des disp. dans "Stats"
 	*impression: -Journal cycle -Page Stats
+	
+1.095	:
+	*Base d'impression de Template (modèle de documents exterieurs)
+
+1.096	:
+	*Possiblité de supprimer/reinitialiser un cycle
+	*repartition de D par sx
