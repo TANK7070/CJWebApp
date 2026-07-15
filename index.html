@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v1.095'</title>
+    <title>SmartEPS v1.096</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -14,6 +14,8 @@
             --main-color2: #4c8acd;
             --title-color1: #4c00c7;
             --accent-color1: #0508db;
+            --update-color1: #217346;
+            --delete-color1: #e74c3c;
 			--dgrdbckgrnd1: linear-gradient(84deg, #036c8c 0%, #4c8acd 73%, #4c4fca 89%, #4c00c7 100%);
         }
 
@@ -89,9 +91,9 @@
         /* MENU CONTEXTUEL CLASSES*/
         #context-menu {display:none;position:fixed;background:#fff;border:1px solid #ddd;box-shadow:0 4px 15px rgba(0,0,0,0.15);z-index:1000;border-radius:5px;overflow:hidden;min-width:180px}
         .menu-item {padding:5px 5px;cursor:pointer;font-size:14px; transition: 0.2s}
-        .menu-item:hover {background: #217346; color:#f0edff}
-        .menu-item.delete {color: #e74c3c; border-top: 1px solid #eee}
-        .menu-item.delete:hover {background: #e74c3c; color: white}
+        .menu-item:hover {background: var(--update-color1); color:#f0edff}
+        .menu-item.delete {color: var(--delete-color1); border-top: 1px solid #eee}
+        .menu-item.delete:hover {background: var(--delete-color1); color: white}
 
         fieldset{padding:15px;border:1px solid #ddd;border-radius:8px;background:#fff;margin-bottom:15px}
         legend{padding:0 10px;font-weight:bold;color:#6c5ce7}
@@ -118,7 +120,7 @@
         }
         .menu-item-class:hover {
             background-color: #f0edff;
-            color: #6c5ce7;
+            color: var(--main-color1);
         }
         .menu-item-class:last-child {
             border-bottom: none;
@@ -165,6 +167,24 @@
         color: #e0e0e0 !important;
     }
 
+    /* Adaptation du menu contextuel des cycles pour le mode sombre */
+    body.dark-mode #cycle-context-menu {
+        background: #1e1e2e !important;
+        border-color: #3a3a5a !important;
+        color: #e0e0e0 !important;
+    }
+
+    /* Pour les éléments "delete" (rouge) en mode sombre */
+    body.dark-mode #cycle-context-menu .menu-item.delete {
+        color: var(--delete-color1) !important; /* rouge plus visible sur fond sombre */
+    }
+    
+    body.dark-mode #cycle-context-menu .menu-item.delete:hover {
+        background: var(--delete-color1) !important;
+        color: #fff !important;
+    }
+
+    
     /* 2. Le conteneur principal */
     body.dark-mode .container {
         background-color: #121212 !important; /* Force le même fond sombre pour boucher les trous */
@@ -261,7 +281,7 @@
     body.dark-mode .btn-retour:hover {
         background: var(--main-color1) !important;
     }
-
+    
     /* Menus déroulants */
     body.dark-mode #dropdown-menu,
     body.dark-mode #dropdown-classes,
@@ -1264,7 +1284,7 @@ function handleFiles(files) {
             const classNameFromFile = (ws["I9"]?.v || file.name.split('.')[0]).trim();
 
             if (isUpdating && classNameFromFile !== classTargeted) {
-                alert(`Erreur : Le fichier est pour ${classNameFromFile}, mais vous mettez à jour ${classTargeted}.`);
+                alert(`Erreur : La classe sélectionnée est ${classNameFromFile}, vous mettez à jour ${classTargeted}.`);
                 isUpdating = false; return;
             }
 
@@ -1348,64 +1368,115 @@ function openClass(name) {
         showTab('import');
         return;
     }
- 
+
     if (name) currentClass = name;
-    
+
     const cl = classesDB[currentClass];
     document.getElementById("class-title").innerText = "Classe : " + currentClass;
-    
+
+    // ------------------------------------------------------------
+    // 1. Définition des disciplines, abréviations et couleurs
+    // ------------------------------------------------------------
     const disciplines = [
-        'Course de Durée 🏃🏽‍♀️‍➡⏰️', 
-        'Course de Vitesse 🏃🏽‍♀️‍➡️', 
-        'Saut en Hauteur', 
-        'Saut en Longueur', 
-        'Lancer de Poids', 
-        'Basketball 🏀', 
-        'Handball 🤾🏽‍♂️', 
-        'Volleyball 🏐', 
-        'Gymnastique 🤸🏽‍♀️', 
+        'Course de Durée 🏃🏽‍♀️‍➡⏰️',
+        'Course de Vitesse 🏃🏽‍♀️‍➡️',
+        'Saut en Hauteur',
+        'Saut en Longueur',
+        'Lancer de Poids',
+        'Basketball 🏀',
+        'Handball 🤾🏽‍♂️',
+        'Volleyball 🏐',
+        'Gymnastique 🤸🏽‍♀️',
         'Sport.Co'
     ];
- 
+
+    const abbrMap = {
+        'Course de Durée 🏃🏽‍♀️‍➡⏰️': 'CD',
+        'Course de Vitesse 🏃🏽‍♀️‍➡️': 'CV',
+        'Saut en Hauteur': 'SH',
+        'Saut en Longueur': 'SL',
+        'Lancer de Poids': 'LP',
+        'Basketball 🏀': 'BB',
+        'Handball 🤾🏽‍♂️': 'HB',
+        'Volleyball 🏐': 'VB',
+        'Gymnastique 🤸🏽‍♀️': 'Gym',
+        'Sport.Co': 'Sprt.Co'
+    };
+
+    const couleurs = {
+        'Course de Durée 🏃🏽‍♀️‍➡⏰️': '#e74c3c',
+        'Course de Vitesse 🏃🏽‍♀️‍➡️': '#2ecc71',
+        'Saut en Hauteur': '#3498db',
+        'Saut en Longueur': '#9b7e2d',
+        'Lancer de Poids': '#77fa2a',
+        'Basketball 🏀': '#fd7922',
+        'Handball 🤾🏽‍♂️': '#ffc936',
+        'Volleyball 🏐': '#3665ff',
+        'Gymnastique 🤸🏽‍♀️': '#8e3dbd',
+        'Sport.Co': '#797979'
+    };
+
+    // ------------------------------------------------------------
+    // 2. Construction des en-têtes du tableau
+    // ------------------------------------------------------------
+    const thead = document.querySelector("#students-table").closest("table").querySelector("thead");
+    // On récupère le <thead> existant et on le vide
+    thead.innerHTML = `
+        <tr>
+            <th>N°</th>
+            <th class="col-massar">Massar</th>
+            <th class="col-nom" style="background: var(--main-color2);">Nom & Prénom</th>
+            <th style="width: 8px;">Sx</th>
+            ${disciplines.map(disc => `
+                <th style="background-color: ${couleurs[disc] || '#6c5ce7'}; cursor:pointer;"
+                    onclick="openCycle('${disc}')"
+                    oncontextmenu="showCycleContextMenu(event, '${disc}')"
+                    title="Clic gauche = ouvrir, Clic droit = options">
+                    ${abbrMap[disc] || disc.substring(0,2)}
+                </th>
+            `).join('')}
+            <th style="background-color: var(--main-color2)">Moy. Gnrl.</th>
+            <th style="background-color: var(--main-color2)">Appréciation</th>
+        </tr>
+    `;
+
+    // ------------------------------------------------------------
+    // 3. Remplissage des lignes d'élèves
+    // ------------------------------------------------------------
     const tbody = document.getElementById("students-table");
-    
     tbody.innerHTML = cl.students.map((s, i) => {
+        // Cellules de notes pour chaque discipline
         const notesCells = disciplines.map(disc => {
             const gradeObj = s.grades && s.grades[disc];
             const finalGrade = (gradeObj && gradeObj.f !== undefined && gradeObj.f !== "") ? gradeObj.f : null;
- 
+
             if (finalGrade !== null) {
                 return `<td style="color:#6c5ce7; font-weight:bold; font-size:13px">${finalGrade}</td>`;
             } else {
                 return `<td style="color:#bbb; font-size:10px">---</td>`;
             }
         }).join("");
- 
-        // --- LOGIQUE MODIFIÉE POUR ÉLÈVE DISPENSÉ (D) ---
+
+        // Calcul de la moyenne générale et de l'appréciation
         let moyenneGen;
         let appreciation;
 
         if (s.index === "D") {
-            // Si l'élève est dispensé, on ignore le calcul et on affecte les valeurs cibles
             moyenneGen = "---";
             appreciation = "Disp.";
         } else if (s.index === "?") {
-            // Si l'élève est dispensé, on ignore le calcul et on affecte les valeurs cibles
             moyenneGen = "Sx?";
             appreciation = "Sx?";
-
         } else {
-            // Sinon, comportement normal : calcul de la moyenne générale
             const finalGrades = disciplines
                 .map(disc => s.grades?.[disc]?.f)
                 .filter(f => f !== undefined && f !== "" && f !== null && !isNaN(parseFloat(f)))
                 .map(f => parseFloat(f));
-                
+
             moyenneGen = finalGrades.length > 0
                 ? (finalGrades.reduce((a, b) => a + b, 0) / finalGrades.length).toFixed(2)
                 : "---";
-     
-            // Attribution de l'appréciation selon la moyenne générale calculée
+
             appreciation = (() => {
                 if (moyenneGen === "---") return "---";
                 const m = parseFloat(moyenneGen);
@@ -1419,7 +1490,7 @@ function openClass(name) {
                 return "Absent-e-";
             })();
         }
- 
+
         return `
             <tr class="bg-row-${s.index}">
                 <td>${i+1}</td>
@@ -1439,10 +1510,90 @@ function openClass(name) {
             </tr>
         `;
     }).join("");
- 
+
     showTab("classe");
 }
 
+// Variable globale pour stocker la discipline ciblée
+let contextDisc = null;
+
+// Affiche le menu contextuel
+function showCycleContextMenu(e, disc) {
+    e.preventDefault();
+    contextDisc = disc;
+    const menu = document.getElementById('cycle-context-menu');
+    menu.style.display = 'block';
+    menu.style.left = e.pageX + 'px';
+    menu.style.top = e.pageY + 'px';
+}
+
+// Masque le menu (déjà présent dans votre code, mais on le renforce)
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('cycle-context-menu');
+    if (menu && menu.style.display === 'block') {
+        menu.style.display = 'none';
+    }
+});
+
+// Réinitialiser un cycle
+function resetCycle() {
+    if (!contextDisc) return;
+    if (!confirm(`Voulez-vous vraiment réinitialiser le cycle "${contextDisc}" ?\nToutes les notes, observations et dates seront effacées.`)) return;
+
+    const cl = classesDB[currentClass];
+    const nbrSeances = getNbrSeances();
+
+    // Réinitialiser les dates
+    cl.cycleDates[contextDisc] = Array(nbrSeances).fill("");
+
+    // Réinitialiser les notes et observations de chaque élève
+    cl.students.forEach(s => {
+        if (s.grades && s.grades[contextDisc]) {
+            s.grades[contextDisc] = {
+                s: Array(nbrSeances).fill(""),
+                c: Array(4).fill(""),
+                f: "",
+                obs: {}
+            };
+        } else {
+            if (!s.grades) s.grades = {};
+            s.grades[contextDisc] = {
+                s: Array(nbrSeances).fill(""),
+                c: Array(4).fill(""),
+                f: "",
+                obs: {}
+            };
+        }
+    });
+
+    save();
+    document.getElementById('cycle-context-menu').style.display = 'none';
+    openClass(currentClass);
+    // alert(`✅ Cycle "${contextDisc}" réinitialisé.`);
+}
+
+// Supprimer complètement un cycle
+function deleteCycle() {
+    if (!contextDisc) return;
+    if (!confirm(`Voulez-vous vraiment supprimer le cycle "${contextDisc}" ?\nToutes les données associées seront définitivement perdues.`)) return;
+
+    const cl = classesDB[currentClass];
+
+    // Supprimer les dates
+    delete cl.cycleDates[contextDisc];
+
+    // Supprimer les notes de chaque élève
+    cl.students.forEach(s => {
+        if (s.grades && s.grades[contextDisc]) {
+            delete s.grades[contextDisc];
+        }
+    });
+
+    save();
+    document.getElementById('cycle-context-menu').style.display = 'none';
+    openClass(currentClass);
+    // alert(`🗑️ Cycle "${contextDisc}" supprimé.`);
+}
 
 // Appréciations par défaut
 function resetAppreciationDefaults() {
@@ -1600,7 +1751,7 @@ function openCycle(disc) {
             <td><input class="input-cell" value="${g.c[1] || ""}" inputmode="decimal" onchange="validateAndUpdateCon(${i}, this)"></td>
             <td><input class="input-cell" value="${g.c[2] || ""}" inputmode="decimal" onchange="updateScore(${i},'c',2,this.value)"></td>
             
-            <td><input class="input-cell" value="${hMotVal}" readonly style="background:#e3f2fd; font-weight:bold;" title="Note calculée depuis l'observation"></td>
+            <td><input class="input-cell" value="${hMotVal}" readonly style="font-weight:bold;" title="Note calculée depuis l'observation"></td>
             
             <td style="background:rgba(16, 172, 132, 0.1)">
                 <input class="input-cell" style="color:#10ac84; font-weight:900; font-size:1.1em;" value="${noteFinale}" readonly>
@@ -3394,6 +3545,18 @@ function _statsDispenses(activeClasses) {
         return;
     }
 
+    // --- Calcul des pourcentages G / F ---
+    let totalG = 0, totalF = 0;
+    dispenses.forEach(d => {
+        if (d.sexe === 'G') totalG++;
+        else if (d.sexe === 'F') totalF++;
+        // les '?' sont ignorés pour le calcul des pourcentages
+    });
+    const totalGF = totalG + totalF;
+    const pctG = totalGF > 0 ? Math.round((totalG / totalGF) * 100) : 0;
+    const pctF = totalGF > 0 ? Math.round((totalF / totalGF) * 100) : 0;
+    const sexeHeader = totalGF > 0 ? `Sexe (G: ${pctG}%, F: ${pctF}%)` : 'Sexe';
+
     // Tri par classe
     dispenses.sort((a, b) => a.classe.localeCompare(b.classe));
 
@@ -3402,7 +3565,7 @@ function _statsDispenses(activeClasses) {
             <tr style="background:var(--main-color1); color:#fff;">
                 <th style="padding:6px 8px; text-align:left;">Classe</th>
                 <th style="padding:6px 8px; text-align:left;">Nom & Prénom</th>
-                <th style="padding:6px 8px; text-align:left;">Sexe</th>
+                <th style="padding:6px 8px; text-align:left;">${sexeHeader}</th>
             </tr>
         </thead>
         <tbody>`;
@@ -4398,12 +4561,19 @@ function _showReconnectBanner(savedHandle) {
 
 </script>
 
+<!-- Menu changement utilisateur -->
 <div id="user-switch-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center;">
   <div style="background:white; border-radius:10px; padding:20px; max-width:320px; width:90%; max-height:70vh; overflow-y:auto;">
     <h3 style="margin-top:0; color:var(--main-color1);">🧑🏼‍🏫 Changer de professeur</h3>
     <div id="user-switch-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:15px;"></div>
     <button onclick="closeUserSwitchModal()" style="width:100%; padding:8px; border-radius:6px; border:1px solid #f88282; background:#c90606; cursor:pointer;">Annuler</button>
   </div>
+</div>
+
+<!-- Menu contextuel pour supprimer ou réinitialiser les cycles -->
+<div id="cycle-context-menu" style="display:none; position:fixed; background:#fff; border:1px solid #ddd; box-shadow:0 4px 15px rgba(0,0,0,0.15); z-index:1000; border-radius:5px; overflow:hidden; min-width:180px;">
+    <div class="menu-item" onclick="resetCycle()">🔄 Réinitialiser le cycle</div>
+    <div class="menu-item delete" onclick="deleteCycle()">🗑️ Supprimer le cycle</div>
 </div>
 
 </body>
