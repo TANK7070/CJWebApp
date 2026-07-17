@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.001'</title>
+    <title>SmartEPS v2.002</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -668,7 +668,7 @@ input:checked + .slider:before {
             
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                 <button type="button" id="btnStats" style="background-color: #698c8f; color: white;" onclick="showTab('stats')">📊 Statistiques</button>
-                <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white;" onclick="showTab('PPG')">🧬 PPG</button>
+                <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white;" onclick="showTab('PPG');">🧬 PPG</button>
                 <button type="button" id="SupprPNom" style="background-color: #e74c3c; color: white;">🗑️ Supprimer Nom/Prénom</button>
                 <button type="button" id="Aprc" style="background-color: #2ecc71; color: white;" onclick="showTab('appreciation')">👁️ Aperçu Appréciation</button>
                 <button type="button" id="CapSprt" style="background-color: #f39c12; color: white;">🏃‍♂️ ParamCapSprtv</button>
@@ -970,12 +970,12 @@ function valLimtGrcT(input) {
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
         <h2 style="color:var(--main-color1); margin-bottom:2px">🧬PPG</h2>
         <div style="display:flex; margin-right: auto; margin-left: 10px;">
-            <button type="button" style="background-color: var(--main-color1); color: white;" onclick="renderPPGList()">📋Liste</button>
+            <button type="button" style="background-color: var(--main-color1); color: white;" onclick="renderPPGListTests()">📋Tests</button>
             <button type="button" id="btnStats" style="background-color: #698c8f; color: white;">📊 Stats</button>
         </div>
         <div style="display:flex; margin-left: auto; margin-right: 5px;">
             <button style="background: var(--main-color2); padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px; margin-right: 5px;" onclick="printPage()">🖨️</button>
-            <select id="PPG-filter-class" onchange="renderPPGList()" style="padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px;">
+            <select id="PPG-filter-class" onchange="renderPPGListTests()" style="padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px;">
                 <option value="__all__">Toutes les classes</option>
             </select>
         </div>    
@@ -1393,7 +1393,7 @@ function renderClasses() {
 
     // Si l'onglet PPG est actif, rafraîchir la liste PPG (filtres et affichage)
     if (document.getElementById('sec-PPG')?.classList.contains('active')) {
-        renderPPGList();
+        renderPPGListTests();
     }
 }
 
@@ -1914,6 +1914,11 @@ function saveSettingsField(key, value) {
         document.getElementById('sec-cycle')?.classList.contains('active')) {
         openCycle(currentDisc);
     }
+
+    // si le test VMA change et que l'onglet PPG est actif, rafraîchir l'affichage
+    if (key === 'TstVMA' && document.getElementById('sec-PPG')?.classList.contains('active')) {
+        renderPPGList();
+    }
 }
 
 // Recalcule la note d'assiduité (et la note finale) de tous les élèves,
@@ -2272,6 +2277,7 @@ function showTab(id) {
     document.getElementById("sec-" + id).classList.add("active");
     document.getElementById("tab-" + id)?.classList.add("active");
     if (id === 'stats') setTimeout(renderStats, 50);
+    if (id === 'PPG') setTimeout(renderPPGListTests, 50);   // ← MODIFICATION ICI
 }
 
 function updateGender(idx, val) {
@@ -4009,34 +4015,114 @@ function calcAge(dob) {
 function savePPG(className, studentIdx, key, value) {
     const s = classesDB[className].students[studentIdx];
     if (!s.ppg) s.ppg = {};
-    s.ppg[key] = value.trim();
+    let val = value.trim();
+    
+    // Sauvegarde de la valeur brute
+    s.ppg[key] = val;
+    
+    // Si le champ modifié est le test VMA, on recalcule VMA et groupe
+    const tst = appSettings.TstVMA || '1';
+    const vmaKey = tst === '2' ? 'demicooper' : 'navette';
+    
+    if (key === vmaKey) {
+        const vma = calculerVMA(vmaKey, val, appSettings.Piste || '200');
+        if (vma !== null) {
+            // Stocke la VMA (utile pour les stats / export)
+            s.ppg.vma = vma.toFixed(2);
+            // Détermine le groupe physiologique
+            s.ppg.grpPhysio = determinerGroupePhysio(vma);
+        } else {
+            s.ppg.vma = '';
+            s.ppg.grpPhysio = '';
+        }
+        
+        // Mise à jour immédiate de l'affichage
+        const vmaInput = document.querySelector(`[data-class="${className}"][data-idx="${studentIdx}"][data-key="vmaDisplay"]`);
+        if (vmaInput) vmaInput.value = s.ppg.vma || '';
+        
+        const grpInput = document.querySelector(`[data-class="${className}"][data-idx="${studentIdx}"][data-key="grpPhysio"]`);
+        if (grpInput) {
+            grpInput.value = s.ppg.grpPhysio || '';
+        }
+    }
+    
     save();
 }
 
-// ── Affiche la liste PPG avec saisie en ligne ────────────────────────────────
-function renderPPGList() {
-    const classes = Object.keys(classesDB);
+// Calcule la VMA en km/h selon le type de test
+function calculerVMA(testType, valeur, longueurPiste) {
+    if (!valeur || isNaN(valeur) || valeur <= 0) return null;
+    const val = parseFloat(valeur);
+    if (testType === 'navette') {
+        // Formule Luc Léger : VMA = 7.5 + 0.5 × palier
+        return 7.5 + 0.5 * val;
+    } else if (testType === 'demicooper') {
+        // Demi-cooper : VMA = (tours × longueur_piste) / 100
+        const piste = parseFloat(longueurPiste) || 200; // valeur par défaut 200m
+        return (val * piste) / 100;
+    }
+    return null;
+}
 
-    // Mise à jour du filtre
+// Détermine le groupe (A/B/C/D) selon la VMA
+function determinerGroupePhysio(vma) {
+    if (vma === null || vma === undefined || isNaN(vma)) return '';
+    if (vma < 9.49) return 'D';
+    if (vma < 10.9) return 'C';
+    if (vma < 12.49) return 'B';
+    return 'A';
+}
+
+// ── Affiche la liste PPG avec saisie en ligne ────────────────────────────────
+function renderPPGListTests() {
+    const container = document.getElementById('ppg-content');
     const sel = document.getElementById('PPG-filter-class');
     const prevVal = sel.value;
-    sel.innerHTML = '<option value="__all__">Toutes les classes</option>';
-    classes.forEach(c => {
-        const o = document.createElement('option');
-        o.value = c; o.textContent = c;
-        if (c === prevVal) o.selected = true;
-        sel.appendChild(o);
+
+    // --- Mise à jour du filtre (identique à renderStats) ---
+    const classes = Object.keys(classesDB);
+    sel.innerHTML = '';
+    
+    // 1. Option "Toutes les classes"
+    const allOpt = document.createElement('option');
+    allOpt.value = '__all__';
+    allOpt.textContent = '📚 Toutes les classes';
+    if (prevVal === '__all__') allOpt.selected = true;
+    sel.appendChild(allOpt);
+
+    // 2. Options par niveau (ordre choisi)
+    const niveaux = ['TC', '1BAC', '2BAC', '1AC', '2AC', '3AC'];
+    const niveauxPresent = niveaux.filter(n => classes.some(c => getNiveauFromName(c) === n));
+    niveauxPresent.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = 'niveau:' + n;
+        opt.textContent = '🏷️ Niveau ' + n;
+        if (prevVal === 'niveau:' + n) opt.selected = true;
+        sel.appendChild(opt);
     });
 
-    const filterClass = sel.value;
-    const activeClasses = filterClass === '__all__' ? classes : [filterClass];
+    // 3. Options par classe individuelle (triées alphabétiquement)
+    classes.slice().sort().forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = '👥 ' + c;
+        if (c === prevVal) opt.selected = true;
+        sel.appendChild(opt);
+    });
 
-    // Colonne VMA selon paramètre TstVMA (1=Navette, 2=Demi-cooper)
-    const tst = appSettings.TstVMA || '1';
-    const vmaCol = tst === '2' ? 'Demi-cooper (tours)' : 'Navette (palier)';
-    const vmaKey = tst === '2' ? 'demicooper' : 'navette';
+    // --- Détermination des classes actives selon le filtre ---
+    let activeClasses;
+    const selected = sel.value;
+    if (selected === '__all__') {
+        activeClasses = classes;
+    } else if (selected.startsWith('niveau:')) {
+        const niveau = selected.split(':')[1];
+        activeClasses = classes.filter(c => getNiveauFromName(c) === niveau);
+    } else {
+        activeClasses = [selected];
+    }
 
-    // Collecter les élèves (exclure dispensés)
+    // --- Collecte des élèves (exclure dispensés) ---
     const rows = [];
     activeClasses.forEach(cn => {
         (classesDB[cn].students || []).forEach((s, i) => {
@@ -4046,12 +4132,17 @@ function renderPPGList() {
     });
 
     if (rows.length === 0) {
-        document.getElementById('ppg-content').innerHTML =
+        container.innerHTML =
             '<p style="color:#aaa; padding:10px;">Aucun élève à afficher.</p>';
         return;
     }
 
-    // --- Styles CSS pour le tableau figé (sans alternance) ---
+    // --- Colonne VMA selon paramètre TstVMA ---
+    const tst = appSettings.TstVMA || '1';
+    const vmaCol = tst === '2' ? 'Demi-cooper<br>(tours)' : 'Navette<br>(palier)';
+    const vmaKey = tst === '2' ? 'demicooper' : 'navette';
+
+    // --- Styles CSS pour le tableau figé ---
     const style = `
         <style>
             .ppg-table-wrap {
@@ -4081,38 +4172,34 @@ function renderPPGList() {
                 border: 1px solid #ddd;
                 white-space: nowrap;
             }
-            /* Colonnes figées */
             .ppg-table .col-num {
                 position: sticky;
                 left: 0;
                 z-index: 10;
-                background: inherit;  /* hérite du fond de la ligne */
+                background: inherit;
                 min-width: 35px;
                 text-align: center;
             }
             .ppg-table .col-nom {
                 position: sticky;
-                left: 35px;  /* largeur de la colonne N° */
+                left: 35px;
                 z-index: 10;
-                background: inherit;  /* hérite du fond de la ligne */
+                background: inherit;
                 min-width: 150px;
                 text-align: left;
                 padding-left: 8px;
             }
-            /* Pour que les en-têtes des colonnes figées soient au-dessus */
             .ppg-table thead .col-num,
             .ppg-table thead .col-nom {
                 z-index: 30;
                 background: var(--main-color1);
             }
-            /* Les cellules des colonnes figées héritent du fond de la ligne via bg-row-* */
             .ppg-table tbody tr {
                 background: inherit;
             }
         </style>
     `;
 
-    // Construction de l'en-tête
     const thStyle = 'padding:5px 3px; font-size:10px; font-weight:bold; white-space:nowrap;';
     const thead = `<tr>
         <th class="col-num" style="${thStyle}">N°</th>
@@ -4125,6 +4212,7 @@ function renderPPGList() {
         <th style="${thStyle}">Dét.<br>Vrt. (cm)</th>
         <th style="${thStyle}">Dét.<br>Hrz. (cm)</th>
         <th style="${thStyle}">${vmaCol}</th>
+        <th style="${thStyle}">VMA<br>(km/h)</th>
         <th style="${thStyle}">Grp.<br>Physio.</th>
         <th style="${thStyle}">Sprint<br>30m (s)</th>
         <th style="${thStyle}">Équil.<br>(s)</th>
@@ -4133,11 +4221,12 @@ function renderPPGList() {
         <th style="${thStyle}">Soupl.<br>Debout (cm)</th>
     </tr>`;
 
-    // Génération des lignes
     let num = 1;
-    const inp = (cn, i, key, type='number') => {
+    // Fonction pour générer un input avec un pas (step) optionnel
+    const inp = (cn, i, key, type='number', step='') => {
         const val = classesDB[cn].students[i].ppg?.[key] ?? '';
-        return `<td><input type="${type}" value="${val}"
+        const stepAttr = step ? `step="${step}"` : '';
+        return `<td><input type="${type}" value="${val}" ${stepAttr}
             style="width:100%; min-width:40px; border:none; border-bottom:1px solid #ddd;
                    background:transparent; text-align:center; font-size:11px; padding:2px;"
             onchange="savePPG('${cn}',${i},'${key}',this.value)"></td>`;
@@ -4145,7 +4234,8 @@ function renderPPGList() {
 
     const tbodyRows = rows.map(({ cn, s, i }) => {
         const age = calcAge(s.dob);
-        // La classe bg-row-* définit la couleur de fond selon le sexe
+        const vmaDisplay = s.ppg?.vma || '';
+        const grpPhysio = s.ppg?.grpPhysio || '';
         return `<tr class="bg-row-${s.index}" style="font-size:11px;">
             <td class="col-num" style="text-align:center;">${num++}</td>
             <td class="col-nom" style="text-align:left; padding-left:8px; white-space:nowrap;">${s.nom}</td>
@@ -4156,8 +4246,9 @@ function renderPPGList() {
             ${inp(cn, i, 'bpm')}
             ${inp(cn, i, 'detVrt')}
             ${inp(cn, i, 'detHrz')}
-            ${inp(cn, i, vmaKey)}
-            ${inp(cn, i, 'grpPhysio', 'text')}
+            ${inp(cn, i, vmaKey, 'number', '0.25')}   <!-- ← STEP 0.25 pour le test VMA -->
+            <td><input type="text" value="${vmaDisplay}" readonly style="width:100%; background:#eee; text-align:center; border:none; font-weight:bold; color:#333;" data-class="${cn}" data-idx="${i}" data-key="vmaDisplay"></td>
+            <td><input type="text" value="${grpPhysio}" readonly style="width:100%; background:#eee; text-align:center; border:none; font-weight:bold; color:#333;" data-class="${cn}" data-idx="${i}" data-key="grpPhysio"></td>
             ${inp(cn, i, 'sprint30')}
             ${inp(cn, i, 'equilibre')}
             ${inp(cn, i, 'medball')}
@@ -4166,7 +4257,7 @@ function renderPPGList() {
         </tr>`;
     }).join('');
 
-    document.getElementById('ppg-content').innerHTML = style + `
+    container.innerHTML = style + `
         <div class="ppg-table-wrap">
             <table class="ppg-table">
                 <thead>${thead}</thead>
