@@ -113,4 +113,7 @@
 	*repartition de D par sx
 
 2.001	:
-	*Page PPG (Liste)
+	*Page PPG (Liste de tests)
+
+2.002	:
+	*Test VMA avec répartion de groupes physio.
