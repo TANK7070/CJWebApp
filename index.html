@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.002</title>
+    <title>SmartEPS v2.003</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -970,12 +970,12 @@ function valLimtGrcT(input) {
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
         <h2 style="color:var(--main-color1); margin-bottom:2px">🧬PPG</h2>
         <div style="display:flex; margin-right: auto; margin-left: 10px;">
-            <button type="button" style="background-color: var(--main-color1); color: white;" onclick="renderPPGListTests()">📋Tests</button>
-            <button type="button" id="btnStats" style="background-color: #698c8f; color: white;">📊 Stats</button>
+            <button type="button" id="btnPPGTests" style="background-color: var(--main-color1); color: white;" onclick="renderPPGListTests()">📋Tests</button>
+            <button type="button" id="btnPPGStats" style="background-color: #698c8f; color: white;" onclick="renderPPGStats()">📊 Stats</button>
         </div>
         <div style="display:flex; margin-left: auto; margin-right: 5px;">
             <button style="background: var(--main-color2); padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px; margin-right: 5px;" onclick="printPage()">🖨️</button>
-            <select id="PPG-filter-class" onchange="renderPPGListTests()" style="padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px;">
+            <select id="PPG-filter-class" onchange="document.getElementById('btnPPGStats').style.backgroundColor==='rgb(3, 108, 140)' ? renderPPGStats() : renderPPGListTests()" style="padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px;">
                 <option value="__all__">Toutes les classes</option>
             </select>
         </div>    
@@ -2277,7 +2277,7 @@ function showTab(id) {
     document.getElementById("sec-" + id).classList.add("active");
     document.getElementById("tab-" + id)?.classList.add("active");
     if (id === 'stats') setTimeout(renderStats, 50);
-    if (id === 'PPG') setTimeout(renderPPGListTests, 50);   // ← MODIFICATION ICI
+    if (id === 'PPG') setTimeout(refreshPPGView, 50);
 }
 
 function updateGender(idx, val) {
@@ -4074,23 +4074,616 @@ function determinerGroupePhysio(vma) {
 }
 
 // ── Affiche la liste PPG avec saisie en ligne ────────────────────────────────
+// ── Gestion état actif des boutons Tests / Stats ─────────────────────────────
+function _ppgSetActiveBtn(active) {
+    const btnT = document.getElementById('btnPPGTests');
+    const btnS = document.getElementById('btnPPGStats');
+    if (!btnT || !btnS) return;
+    btnT.style.backgroundColor = active === 'tests' ? 'var(--main-color1)' : '#698c8f';
+    btnS.style.backgroundColor = active === 'stats' ? 'var(--main-color1)' : '#698c8f';
+}
+
+// ── Filtre PPG partagé : retourne les classes actives selon la sélection ──────
+function _ppgActiveClasses() {
+    const classes = Object.keys(classesDB);
+    const sel = document.getElementById('PPG-filter-class');
+    const selected = sel?.value || '__all__';
+    if (selected === '__all__') return classes;
+    if (selected.startsWith('niveau:')) {
+        const niveau = selected.split(':')[1];
+        return classes.filter(c => getNiveauFromName(c) === niveau);
+    }
+    return [selected];
+}
+
+// ── Statistiques PPG ──────────────────────────────────────────────────────────
+// ============================================================
+// STATISTIQUES PPG (version complète avec graphiques)
+// ============================================================
+
+let _ppgStatsCharts = {};
+let ppgView = 'tests'; // 'tests' ou 'stats'
+
+// Bascule entre les vues
+function showPPGView(view) {
+    ppgView = view;
+    refreshPPGView();
+}
+
+// Rafraîchit la vue courante
+function refreshPPGView() {
+    if (ppgView === 'tests') {
+        renderPPGListTests();
+    } else {
+        renderPPGStats();
+    }
+}
+
+function _destroyPPGChart(id) {
+    if (_ppgStatsCharts[id]) { _ppgStatsCharts[id].destroy(); delete _ppgStatsCharts[id]; }
+}
+
+// ── Collecte des données PPG selon le filtre ──────────────────
+function _collectPPGData(activeClasses) {
+    let totalEleves = 0, totalG = 0, totalF = 0, totalD = 0;
+    let groupCounts = { A: 0, B: 0, C: 0, D: 0 };
+    let vmaValues = [];
+    let ages = [], agesG = [], agesF = [];
+    let imcValues = [], imcG = [], imcF = [];
+    let imcCounts = { Maigreur: 0, Normal: 0, Surpoids: 0, Obesite: 0 };   // <-- NOUVEAU
+    let poids = [], taille = [], bpm = [], detVrt = [], detHrz = [];
+    let sprint30 = [], equilibre = [], medball = [], souplAssis = [], souplDebout = [];
+    let poidsG = [], poidsF = [], tailleG = [], tailleF = [];
+    let bpmG = [], bpmF = [], detVrtG = [], detVrtF = [];
+    let detHrzG = [], detHrzF = [], sprint30G = [], sprint30F = [];
+    let equilibreG = [], equilibreF = [], medballG = [], medballF = [];
+    let souplAssisG = [], souplAssisF = [], souplDeboutG = [], souplDeboutF = [];
+    const classMoyennes = {};
+
+    activeClasses.forEach(cn => {
+        const cl = classesDB[cn];
+        if (!cl) return;
+        const students = cl.students || [];
+        totalEleves += students.length;
+        let classPoids = [], classTaille = [], classVMA = [];
+
+        students.forEach(s => {
+            if (s.index === 'D') { totalD++; return; }
+            if (s.index === 'G') totalG++;
+            else if (s.index === 'F') totalF++;
+            else return;
+
+            const ppg = s.ppg || {};
+            const p = parseFloat(ppg.poids);
+            const t = parseFloat(ppg.taille);
+            
+            // --- IMC ---
+            if (p > 0 && t > 0) {
+                const imc = p / (t * t);
+                imcValues.push(imc);
+                // Comptage des catégories d'IMC
+                if (imc < 18.5) imcCounts.Maigreur++;
+                else if (imc < 25) imcCounts.Normal++;
+                else if (imc < 30) imcCounts.Surpoids++;
+                else imcCounts.Obesite++;
+                
+                if (s.index === 'G') imcG.push(imc);
+                else if (s.index === 'F') imcF.push(imc);
+            }
+
+            // --- Âge ---
+            const age = calcAge(s.dob);
+            if (age !== '' && !isNaN(age)) {
+                const ageNum = parseInt(age, 10);
+                ages.push(ageNum);
+                if (s.index === 'G') agesG.push(ageNum);
+                else if (s.index === 'F') agesF.push(ageNum);
+            }
+
+            const vma = parseFloat(ppg.vma);
+            if (!isNaN(vma) && vma > 0) {
+                vmaValues.push(vma);
+                classVMA.push(vma);
+                const grp = ppg.grpPhysio || '';
+                if (grp === 'A') groupCounts.A++;
+                else if (grp === 'B') groupCounts.B++;
+                else if (grp === 'C') groupCounts.C++;
+                else if (grp === 'D') groupCounts.D++;
+            }
+
+            // Collecte des autres valeurs numériques
+            if (!isNaN(p) && p > 0) { poids.push(p); classPoids.push(p); if (s.index === 'G') poidsG.push(p); else poidsF.push(p); }
+            if (!isNaN(t) && t > 0) { taille.push(t); classTaille.push(t); if (s.index === 'G') tailleG.push(t); else tailleF.push(t); }
+            const b = parseFloat(ppg.bpm); if (!isNaN(b) && b > 0) { bpm.push(b); if (s.index === 'G') bpmG.push(b); else bpmF.push(b); }
+            const dv = parseFloat(ppg.detVrt); if (!isNaN(dv) && dv > 0) { detVrt.push(dv); if (s.index === 'G') detVrtG.push(dv); else detVrtF.push(dv); }
+            const dh = parseFloat(ppg.detHrz); if (!isNaN(dh) && dh > 0) { detHrz.push(dh); if (s.index === 'G') detHrzG.push(dh); else detHrzF.push(dh); }
+            const sp = parseFloat(ppg.sprint30); if (!isNaN(sp) && sp > 0) { sprint30.push(sp); if (s.index === 'G') sprint30G.push(sp); else sprint30F.push(sp); }
+            const eq = parseFloat(ppg.equilibre); if (!isNaN(eq) && eq > 0) { equilibre.push(eq); if (s.index === 'G') equilibreG.push(eq); else equilibreF.push(eq); }
+            const mb = parseFloat(ppg.medball); if (!isNaN(mb) && mb > 0) { medball.push(mb); if (s.index === 'G') medballG.push(mb); else medballF.push(mb); }
+            const sa = parseFloat(ppg.souplAssis); if (!isNaN(sa) && sa > 0) { souplAssis.push(sa); if (s.index === 'G') souplAssisG.push(sa); else souplAssisF.push(sa); }
+            const sd = parseFloat(ppg.souplDebout); if (!isNaN(sd) && sd > 0) { souplDebout.push(sd); if (s.index === 'G') souplDeboutG.push(sd); else souplDeboutF.push(sd); }
+        });
+
+        if (classPoids.length > 0) {
+            classMoyennes[cn] = {
+                poids: (classPoids.reduce((a,b) => a+b, 0) / classPoids.length).toFixed(1),
+                taille: (classTaille.reduce((a,b) => a+b, 0) / classTaille.length).toFixed(2),
+                vma: (classVMA.reduce((a,b) => a+b, 0) / classVMA.length).toFixed(1)
+            };
+        }
+    });
+
+    const avg = (arr) => arr.length > 0 ? (arr.reduce((a,b) => a+b, 0) / arr.length) : 0;
+
+    return {
+        totalEleves, totalG, totalF, totalD, groupCounts, vmaValues,
+        ages, agesG, agesF,
+        imcValues, imcG, imcF, imcCounts,   // <-- NOUVEAU
+        poids, taille, bpm, detVrt, detHrz, sprint30, equilibre, medball, souplAssis, souplDebout,
+        poidsG, poidsF, tailleG, tailleF, bpmG, bpmF, detVrtG, detVrtF,
+        detHrzG, detHrzF, sprint30G, sprint30F, equilibreG, equilibreF,
+        medballG, medballF, souplAssisG, souplAssisF, souplDeboutG, souplDeboutF,
+        classMoyennes,
+        avgAge: avg(ages), avgAgeG: avg(agesG), avgAgeF: avg(agesF),
+        avgIMC: avg(imcValues), avgIMCG: avg(imcG), avgIMCF: avg(imcF),
+        avgPoids: avg(poids), avgTaille: avg(taille), avgBpm: avg(bpm),
+        avgDetVrt: avg(detVrt), avgDetHrz: avg(detHrz),
+        avgSprint30: avg(sprint30), avgEquilibre: avg(equilibre),
+        avgMedball: avg(medball), avgSouplAssis: avg(souplAssis), avgSouplDebout: avg(souplDebout)
+    };
+}
+
+// ── Rend les statistiques PPG dans #ppg-content ──────────────
+function renderPPGStats() {
+    const container = document.getElementById('ppg-content');
+    if (!container) return;
+
+    // Récupérer le filtre
+    const sel = document.getElementById('PPG-filter-class');
+    const selected = sel.value;
+    const classes = Object.keys(classesDB);
+    let activeClasses;
+    if (selected === '__all__') {
+        activeClasses = classes;
+    } else if (selected.startsWith('niveau:')) {
+        const niveau = selected.split(':')[1];
+        activeClasses = classes.filter(c => getNiveauFromName(c) === niveau);
+    } else {
+        activeClasses = [selected];
+    }
+
+    // Collecte des données
+    const data = _collectPPGData(activeClasses);
+
+    // Construction du HTML des statistiques
+    let html = '';
+
+    // 1. Cartes synthèse
+    const totalAvecDonnees = data.vmaValues.length;
+    const avgVMA = data.vmaValues.length ? (data.vmaValues.reduce((a,b) => a+b, 0) / data.vmaValues.length).toFixed(1) : '—';
+    const minVMA = data.vmaValues.length ? Math.min(...data.vmaValues).toFixed(1) : '—';
+    const maxVMA = data.vmaValues.length ? Math.max(...data.vmaValues).toFixed(1) : '—';
+
+    const avgIMC = data.avgIMC || 0;
+    let interpretation = '';
+    if (avgIMC < 18.5) interpretation = 'Maigreur';
+    else if (avgIMC < 25) interpretation = 'Normal';
+    else if (avgIMC < 30) interpretation = 'Surpoids';
+    else interpretation = 'Obésité';
+
+    html += `
+        <div style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:10px;">
+            <div style="flex:1; background:var(--main-color1); color:#fff; border-radius:10px; padding:5px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+                <div style="font-size:20px; font-weight:bold; line-height:1.2">🧬 ${totalAvecDonnees}</div>
+                <div style="font-size:10px; opacity:0.85">Élèves/VMA</div>
+                <div style="font-size:9px; opacity:0.75; margin-top:2px;">♂️: ${data.totalG} | ♀️: ${data.totalF} | ⬛: ${data.totalD}</div>
+            </div>
+            <div style="flex:1; background:var(--main-color1); color:#fff; border-radius:10px; padding:5px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+                <div style="font-size:20px; font-weight:bold; line-height:1.2">📊 ${avgVMA}</div>
+                <div style="font-size:10px; opacity:0.85">VMA moyenne (km/h)</div>
+                <div style="font-size:9px; opacity:0.75; margin-top:2px;">Min: ${minVMA} / Max: ${maxVMA}</div>
+            </div>
+            <div style="flex:1; background:var(--main-color1); color:#fff; border-radius:10px; padding:5px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+                <div style="font-size:20px; font-weight:bold; line-height:1.2">🎂 ${data.avgAge ? data.avgAge.toFixed(1) : '—'}</div>
+                <div style="font-size:10px; opacity:0.85">Âge moyen (ans)</div>
+                <div style="font-size:9px; opacity:0.75; margin-top:2px;">♂️ ${data.avgAgeG ? data.avgAgeG.toFixed(1) : '—'} / ♀️ ${data.avgAgeF ? data.avgAgeF.toFixed(1) : '—'}</div>
+            </div>
+            <div style="flex:1; background:var(--main-color1); color:#fff; border-radius:10px; padding:5px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+                <div style="font-size:20px; font-weight:bold; line-height:1.2">⚖️ ${avgIMC ? avgIMC.toFixed(1) : '—'}</div>
+                <div style="font-size:10px; opacity:0.85">IMC moyen | ${interpretation}</div>
+                <div style="font-size:8px; opacity:0.6;">♂️ ${data.avgIMCG ? data.avgIMCG.toFixed(1) : '—'} / ♀️ ${data.avgIMCF ? data.avgIMCF.toFixed(1) : '—'}</div>
+            </div>
+        </div>
+    `;
+
+    // 2. Graphiques (dans une grille)
+    html += `<div class="stats-grid">`;
+    html += `<div class="stats-card"><div class="stats-card-title">🧬 Groupes physiologiques (A/B/C/D)</div><canvas id="chart-ppg-groupes"></canvas></div>`;
+    html += `<div class="stats-grid">`;
+    html += `<div class="stats-card"><div class="stats-card-title">📊 Répartition des catégories d'IMC</div><canvas id="chart-ppg-imc"></canvas></div>`;
+    html += `</div>`;
+    html += `<div class="stats-card"><div class="stats-card-title">📈 Distribution des VMA (km/h)</div><canvas id="chart-ppg-vma"></canvas></div>`;
+    html += `</div>`;
+    html += `<div class="stats-grid">`;
+    html += `<div class="stats-card"><div class="stats-card-title">📊 Moyennes des tests par sexe</div><canvas id="chart-ppg-moyennes"></canvas></div>`;
+    html += `<div class="stats-card"><div class="stats-card-title">📊 Plage des valeurs (min / moy / max)</div><canvas id="chart-ppg-plage"></canvas></div>`;
+    html += `</div>`;
+
+    // 3. Tableau récapitulatif par classe
+    html += `<div style="border-radius:10px; padding:12px; box-shadow:0 1px 4px rgba(0,0,0,0.1); margin-top:12px;">
+        <div style="font-weight:bold; color:var(--main-color1); margin-bottom:8px; font-size:13px;">📊 Récapitulatif des moyennes par classe</div>
+        <div id="ppg-stats-table" style="overflow-x:auto;"></div>
+    </div>`;
+
+    container.innerHTML = html;
+
+    // Dessiner les graphiques après injection
+    setTimeout(() => {
+    _renderPPGChartGroupes(data);
+    _renderPPGChartVMA(data);
+    _renderPPGChartMoyennes(data);
+    _renderPPGChartPlage(data);
+    _renderPPGChartIMCBars(data);          // <-- NOUVEAU
+    _renderPPGStatsTable(data, activeClasses);
+    }, 50);
+}
+
+// ── Graphique : Répartition des catégories d'IMC (barres verticales) ──
+function _renderPPGChartIMCBars(d) {
+    _destroyPPGChart('imc');
+    const canvas = document.getElementById('chart-ppg-imc');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    const total = d.imcCounts.Maigreur + d.imcCounts.Normal + d.imcCounts.Surpoids + d.imcCounts.Obesite;
+    if (total === 0) {
+        canvas.parentElement.innerHTML = '<p style="padding:10px; text-align:center; color:#888;">Aucune donnée d\'IMC.</p>';
+        return;
+    }
+    
+    const labels = ['Maigreur', 'Normal', 'Surpoids', 'Obésité'];
+    const data = [
+        d.imcCounts.Maigreur || 0,
+        d.imcCounts.Normal || 0,
+        d.imcCounts.Surpoids || 0,
+        d.imcCounts.Obesite || 0
+    ];
+    const colors = ['#f3e412', '#2ecc71', '#e67e22', '#e74c3c'];
+    
+    _ppgStatsCharts['imc'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Nombre d\'élèves',
+                data: data,
+                backgroundColor: colors,
+                borderColor: colors.map(c => c),
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            layout: {
+                padding: {
+                    top: 30   // ← Marge pour les labels en tête
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                            return `${ctx.parsed.y} élèves (${((ctx.parsed.y/total)*100).toFixed(1)}%)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        },
+        plugins: [{
+            id: 'imcBarLabels',
+            afterDraw: function(chart) {
+                const ctx = chart.ctx;
+                const meta = chart.getDatasetMeta(0);
+                const data = chart.data.datasets[0].data;
+                const total = data.reduce((a,b) => a+b, 0);
+                
+                meta.data.forEach((bar, index) => {
+                    const value = data[index];
+                    if (value > 0) {
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        const label = `${value} (${percentage}%)`;
+                        const x = bar.x;
+                        const y = bar.y - 8;
+                        
+                        ctx.save();
+                        ctx.fillStyle = '#888';
+                        ctx.font = 'bold 11px Tahoma';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(label, x, y);
+                        ctx.restore();
+                    }
+                });
+            }
+        }]
+    });
+}
+
+// ── Graphique : Groupes physiologiques ──────────────────────
+function _renderPPGChartGroupes(d) {
+    _destroyPPGChart('groupes');
+    const canvas = document.getElementById('chart-ppg-groupes');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const total = d.groupCounts.A + d.groupCounts.B + d.groupCounts.C + d.groupCounts.D;
+    if (total === 0) {
+        canvas.parentElement.innerHTML = '<p style="padding:10px; text-align:center; color:#888;">Aucune donnée de groupe.</p>';
+        return;
+    }
+    
+    // Calcul des pourcentages pour l'affichage central
+    const pctA = ((d.groupCounts.A / total) * 100).toFixed(1);
+    const pctB = ((d.groupCounts.B / total) * 100).toFixed(1);
+    const pctC = ((d.groupCounts.C / total) * 100).toFixed(1);
+    const pctD = ((d.groupCounts.D / total) * 100).toFixed(1);
+    
+    _ppgStatsCharts['groupes'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['A', 'B', 'C', 'D'],
+            datasets: [{
+                data: [d.groupCounts.A, d.groupCounts.B, d.groupCounts.C, d.groupCounts.D],
+                backgroundColor: ['#8ea9db', '#305496', '#00b0f0', '#e74c3c'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: { 
+                    callbacks: { 
+                        label: (ctx) => {
+                            const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                            return `${ctx.label}: ${ctx.parsed} (${((ctx.parsed/total)*100).toFixed(1)}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '65%'
+        },
+        plugins: [{
+            id: 'centerTextGroupes',
+            afterDraw(chart) {
+                const { ctx, chartArea: { width, height, top } } = chart;
+                const cx = width / 2 + chart.chartArea.left;
+                const cy = top + height / 2;
+                const lines = [
+                    { txt: `A: ${d.groupCounts.A} (${pctA}%)`, color: '#8ea9db' },
+                    { txt: `B: ${d.groupCounts.B} (${pctB}%)`, color: '#305496' },
+                    { txt: `C: ${d.groupCounts.C} (${pctC}%)`, color: '#00b0f0' },
+                    { txt: `D: ${d.groupCounts.D} (${pctD}%)`, color: '#e74c3c' },
+                ];
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const lineH = 14;
+                const startY = cy - (lines.length - 1) * lineH / 2;
+                lines.forEach((l, i) => {
+                    ctx.font = 'bold 10px Tahoma';
+                    ctx.fillStyle = l.color;
+                    ctx.fillText(l.txt, cx, startY + i * lineH);
+                });
+                ctx.restore();
+            }
+        }]
+    });
+}
+
+// ── Graphique : Distribution des VMA ──────────────────────
+function _renderPPGChartVMA(d) {
+    _destroyPPGChart('vma');
+    const canvas = document.getElementById('chart-ppg-vma');
+    if (!canvas) return;
+    if (d.vmaValues.length === 0) {
+        canvas.parentElement.innerHTML = '<p style="padding:10px; text-align:center; color:#888;">Aucune VMA enregistrée.</p>';
+        return;
+    }
+    const ctx = canvas.getContext('2d');
+    const min = Math.floor(Math.min(...d.vmaValues) / 2) * 2;
+    const max = Math.ceil(Math.max(...d.vmaValues) / 2) * 2;
+    const step = 1;
+    const buckets = [];
+    for (let i = min; i < max; i += step) buckets.push(i);
+    const counts = Array(buckets.length).fill(0);
+    d.vmaValues.forEach(v => {
+        const idx = Math.floor((v - min) / step);
+        if (idx >= 0 && idx < counts.length) counts[idx]++;
+    });
+    _ppgStatsCharts['vma'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: buckets.map(b => `${b}-${(b+step).toFixed(1)}`),
+            datasets: [{ label: 'Nbre élèves', data: counts,
+                backgroundColor: 'rgba(3,108,140,0.7)', borderColor: '#036c8c',
+                borderWidth: 1, borderRadius: 4 }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
+
+// ── Graphique : Moyennes des tests par sexe ────────────────
+function _renderPPGChartMoyennes(d) {
+    _destroyPPGChart('moyennes');
+    const canvas = document.getElementById('chart-ppg-moyennes');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const avg = (arr) => arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : 0;
+    const labels = ['Poids (kg)', 'Taille (m)', 'BPM', 'Dét.V (cm)', 'Dét.H (cm)', 'Sprint (s)', 'Équil. (s)', 'MedBall (m)', 'Soupl.A (cm)', 'Soupl.D (cm)'];
+    const gData = [
+        avg(d.poidsG), avg(d.tailleG), avg(d.bpmG), avg(d.detVrtG), avg(d.detHrzG),
+        avg(d.sprint30G), avg(d.equilibreG), avg(d.medballG), avg(d.souplAssisG), avg(d.souplDeboutG)
+    ];
+    const fData = [
+        avg(d.poidsF), avg(d.tailleF), avg(d.bpmF), avg(d.detVrtF), avg(d.detHrzF),
+        avg(d.sprint30F), avg(d.equilibreF), avg(d.medballF), avg(d.souplAssisF), avg(d.souplDeboutF)
+    ];
+    if (gData.every(v => v === 0) && fData.every(v => v === 0)) {
+        canvas.parentElement.innerHTML = '<p style="padding:10px; text-align:center; color:#888;">Aucune donnée par sexe.</p>';
+        return;
+    }
+    _ppgStatsCharts['moyennes'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Garçons', data: gData, backgroundColor: 'rgba(3,108,140,0.8)', borderColor: '#036c8c', borderWidth: 1 },
+                { label: 'Filles', data: fData, backgroundColor: 'rgba(233,30,140,0.8)', borderColor: '#e91e8c', borderWidth: 1 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+// ── Graphique : Plage des valeurs ──────────────────────────
+function _renderPPGChartPlage(d) {
+    _destroyPPGChart('plage');
+    const canvas = document.getElementById('chart-ppg-plage');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const tests = [
+        { label: 'Poids (kg)', data: d.poids },
+        { label: 'Taille (m)', data: d.taille },
+        { label: 'BPM', data: d.bpm },
+        { label: 'Dét.V (cm)', data: d.detVrt },
+        { label: 'Dét.H (cm)', data: d.detHrz },
+        { label: 'Sprint (s)', data: d.sprint30 },
+        { label: 'Équil. (s)', data: d.equilibre },
+        { label: 'MedBall (m)', data: d.medball },
+        { label: 'Soupl.A (cm)', data: d.souplAssis },
+        { label: 'Soupl.D (cm)', data: d.souplDebout }
+    ];
+    const filtered = tests.filter(t => t.data.length > 0);
+    if (filtered.length === 0) {
+        canvas.parentElement.innerHTML = '<p style="padding:10px; text-align:center; color:#888;">Aucune donnée pour la plage.</p>';
+        return;
+    }
+    const labels = filtered.map(t => t.label);
+    const mins = filtered.map(t => Math.min(...t.data));
+    const maxs = filtered.map(t => Math.max(...t.data));
+    const moyennes = filtered.map(t => t.data.reduce((a,b) => a+b, 0) / t.data.length);
+    _ppgStatsCharts['plage'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Min', data: mins, backgroundColor: 'rgba(231,76,60,0.6)', borderColor: '#e74c3c', borderWidth: 1 },
+                { label: 'Moyenne', data: moyennes, backgroundColor: 'rgba(3,108,140,0.7)', borderColor: '#036c8c', borderWidth: 1 },
+                { label: 'Max', data: maxs, backgroundColor: 'rgba(46,204,113,0.6)', borderColor: '#2ecc71', borderWidth: 1 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+// ── Tableau récapitulatif par classe ──────────────────────
+function _renderPPGStatsTable(d, activeClasses) {
+    const container = document.getElementById('ppg-stats-table');
+    if (!container) return;
+    const rows = activeClasses.map(cn => {
+        const moy = d.classMoyennes[cn];
+        if (!moy) return '';
+        return `<tr>
+            <td style="padding:5px 8px; border:1px solid #eee; font-weight:bold">${cn}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; text-align:center">${moy.poids}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; text-align:center">${moy.taille}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; text-align:center">${moy.vma}</td>
+        </tr>`;
+    }).filter(r => r).join('');
+    container.innerHTML = rows ? `
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+                <tr style="background:var(--main-color1); color:#fff;">
+                    <th style="padding:6px 8px; text-align:left">Classe</th>
+                    <th style="padding:6px 8px">Poids moy. (kg)</th>
+                    <th style="padding:6px 8px">Taille moy. (m)</th>
+                    <th style="padding:6px 8px">VMA moy. (km/h)</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>` : '<p style="color:#888; font-size:13px; padding:8px;">Aucune donnée par classe.</p>';
+}
+
+// ── Rafraîchit uniquement le filtre sans re-rendre le contenu ─────────────────
+function _ppgRefreshFilter() {
+    const classes = Object.keys(classesDB);
+    const sel = document.getElementById('PPG-filter-class');
+    if (!sel) return;
+    const prevVal = sel.value;
+    sel.innerHTML = '';
+    const allOpt = document.createElement('option');
+    allOpt.value = '__all__'; allOpt.textContent = '📚 Toutes les classes';
+    if (prevVal === '__all__') allOpt.selected = true;
+    sel.appendChild(allOpt);
+    const niveaux = ['TC', '1BAC', '2BAC', '1AC', '2AC', '3AC'];
+    const niveauxPresent = niveaux.filter(n => classes.some(c => getNiveauFromName(c) === n));
+    niveauxPresent.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = 'niveau:' + n; opt.textContent = '🏷️ Niveau ' + n;
+        if (prevVal === 'niveau:' + n) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    classes.slice().sort().forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = '👥 ' + c;
+        if (c === prevVal) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
 function renderPPGListTests() {
+    _ppgSetActiveBtn('tests');
     const container = document.getElementById('ppg-content');
     const sel = document.getElementById('PPG-filter-class');
     const prevVal = sel.value;
 
-    // --- Mise à jour du filtre (identique à renderStats) ---
+    // --- Mise à jour du filtre ---
     const classes = Object.keys(classesDB);
     sel.innerHTML = '';
     
-    // 1. Option "Toutes les classes"
     const allOpt = document.createElement('option');
     allOpt.value = '__all__';
     allOpt.textContent = '📚 Toutes les classes';
     if (prevVal === '__all__') allOpt.selected = true;
     sel.appendChild(allOpt);
 
-    // 2. Options par niveau (ordre choisi)
     const niveaux = ['TC', '1BAC', '2BAC', '1AC', '2AC', '3AC'];
     const niveauxPresent = niveaux.filter(n => classes.some(c => getNiveauFromName(c) === n));
     niveauxPresent.forEach(n => {
@@ -4101,7 +4694,6 @@ function renderPPGListTests() {
         sel.appendChild(opt);
     });
 
-    // 3. Options par classe individuelle (triées alphabétiquement)
     classes.slice().sort().forEach(c => {
         const opt = document.createElement('option');
         opt.value = c;
@@ -4122,18 +4714,16 @@ function renderPPGListTests() {
         activeClasses = [selected];
     }
 
-    // --- Collecte des élèves (exclure dispensés) ---
+    // --- Collecte des élèves (inclure les dispensés) ---
     const rows = [];
     activeClasses.forEach(cn => {
         (classesDB[cn].students || []).forEach((s, i) => {
-            if (s.index === 'D') return;
             rows.push({ cn, s, i });
         });
     });
 
     if (rows.length === 0) {
-        container.innerHTML =
-            '<p style="color:#aaa; padding:10px;">Aucun élève à afficher.</p>';
+        container.innerHTML = '<p style="color:#aaa; padding:10px;">Aucun élève à afficher.</p>';
         return;
     }
 
@@ -4197,6 +4787,15 @@ function renderPPGListTests() {
             .ppg-table tbody tr {
                 background: inherit;
             }
+            .ppg-input-disabled {
+                background: #eeeeee00 !important;
+                color: #999 !important;
+                cursor: not-allowed;
+            }
+            body.dark-mode .ppg-input-disabled {
+                background: #2a2a3e !important;
+                color: #666 !important;
+            }
         </style>
     `;
 
@@ -4222,11 +4821,12 @@ function renderPPGListTests() {
     </tr>`;
 
     let num = 1;
-    // Fonction pour générer un input avec un pas (step) optionnel
-    const inp = (cn, i, key, type='number', step='') => {
+    // Fonction pour générer un input avec possibilité de désactiver
+    const inp = (cn, i, key, type='number', step='', disabled=false) => {
         const val = classesDB[cn].students[i].ppg?.[key] ?? '';
         const stepAttr = step ? `step="${step}"` : '';
-        return `<td><input type="${type}" value="${val}" ${stepAttr}
+        const disabledAttr = disabled ? 'disabled class="ppg-input-disabled"' : '';
+        return `<td><input type="${type}" value="${val}" ${stepAttr} ${disabledAttr}
             style="width:100%; min-width:40px; border:none; border-bottom:1px solid #ddd;
                    background:transparent; text-align:center; font-size:11px; padding:2px;"
             onchange="savePPG('${cn}',${i},'${key}',this.value)"></td>`;
@@ -4234,8 +4834,13 @@ function renderPPGListTests() {
 
     const tbodyRows = rows.map(({ cn, s, i }) => {
         const age = calcAge(s.dob);
-        const vmaDisplay = s.ppg?.vma || '';
-        const grpPhysio = s.ppg?.grpPhysio || '';
+        const estDispense = s.index === 'D';
+        
+        // Pour les dispensés : on affiche "N/A" et on désactive les champs physiques
+        const vmaDisplay = estDispense ? 'xx' : (s.ppg?.vma || '');
+        const grpPhysio = estDispense ? 'xx' : (s.ppg?.grpPhysio || '');
+        
+        // Les champs biométriques restent modifiables, les champs physiques sont désactivés
         return `<tr class="bg-row-${s.index}" style="font-size:11px;">
             <td class="col-num" style="text-align:center;">${num++}</td>
             <td class="col-nom" style="text-align:left; padding-left:8px; white-space:nowrap;">${s.nom}</td>
@@ -4244,16 +4849,16 @@ function renderPPGListTests() {
             ${inp(cn, i, 'poids')}
             ${inp(cn, i, 'taille')}
             ${inp(cn, i, 'bpm')}
-            ${inp(cn, i, 'detVrt')}
-            ${inp(cn, i, 'detHrz')}
-            ${inp(cn, i, vmaKey, 'number', '0.25')}   <!-- ← STEP 0.25 pour le test VMA -->
-            <td><input type="text" value="${vmaDisplay}" readonly style="width:100%; background:#eee; text-align:center; border:none; font-weight:bold; color:#333;" data-class="${cn}" data-idx="${i}" data-key="vmaDisplay"></td>
-            <td><input type="text" value="${grpPhysio}" readonly style="width:100%; background:#eee; text-align:center; border:none; font-weight:bold; color:#333;" data-class="${cn}" data-idx="${i}" data-key="grpPhysio"></td>
-            ${inp(cn, i, 'sprint30')}
-            ${inp(cn, i, 'equilibre')}
-            ${inp(cn, i, 'medball')}
-            ${inp(cn, i, 'souplAssis')}
-            ${inp(cn, i, 'souplDebout')}
+            ${inp(cn, i, 'detVrt', 'number', '0.1', estDispense)}
+            ${inp(cn, i, 'detHrz', 'number', '0.1', estDispense)}
+            ${inp(cn, i, vmaKey, 'number', '0.25', estDispense)}
+            <td><input type="text" value="${vmaDisplay}" readonly style="width:100%; background:#eeeeee00; text-align:center; border:none; font-weight:bold; color:#333;" data-class="${cn}" data-idx="${i}" data-key="vmaDisplay"></td>
+            <td><input type="text" value="${grpPhysio}" readonly style="width:100%; background:#eeeeee00; text-align:center; border:none; font-weight:bold; color:#333;" data-class="${cn}" data-idx="${i}" data-key="grpPhysio"></td>
+            ${inp(cn, i, 'sprint30', 'number', '0.01', estDispense)}
+            ${inp(cn, i, 'equilibre', 'number', '0.1', estDispense)}
+            ${inp(cn, i, 'medball', 'number', '0.1', estDispense)}
+            ${inp(cn, i, 'souplAssis', 'number', '0.1', estDispense)}
+            ${inp(cn, i, 'souplDebout', 'number', '0.1', estDispense)}
         </tr>`;
     }).join('');
 
@@ -4264,7 +4869,7 @@ function renderPPGListTests() {
                 <tbody>${tbodyRows}</tbody>
             </table>
         </div>
-        <p style="font-size:10px; color:#888; margin-top:4px;">💡 Les colonnes N° et Nom sont figées. Défilez horizontalement pour voir les autres données.</p>
+        <p style="font-size:10px; color:#888; margin-top:4px;">💡 Les colonnes N° et Nom sont figées. Défilez horizontalement pour voir les autres données. Les élèves dispensés (D) ont les champs de tests physiques désactivés.</p>
     `;
 }
 
