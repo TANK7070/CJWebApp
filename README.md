@@ -117,3 +117,8 @@
 
 2.002	:
 	*Test VMA avec répartion de groupes physio.
+
+2.003	:
+	*Stats PPG: Cartouches: Age moyen, IMC moyen
+	*Stats PPG: Graph barres IMC
+	*les "D" dans liste TestsPPG
