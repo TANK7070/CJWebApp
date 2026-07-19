@@ -122,3 +122,6 @@
 	*Stats PPG: Cartouches: Age moyen, IMC moyen
 	*Stats PPG: Graph barres IMC
 	*les "D" dans liste TestsPPG
+	
+2.004'	:
+	*navigation clavier dans TestsPPG
