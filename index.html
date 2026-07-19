@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.003</title>
+    <title>SmartEPS v2.004'</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -4827,6 +4827,7 @@ function renderPPGListTests() {
         const stepAttr = step ? `step="${step}"` : '';
         const disabledAttr = disabled ? 'disabled class="ppg-input-disabled"' : '';
         return `<td><input type="${type}" value="${val}" ${stepAttr} ${disabledAttr}
+            data-ppg-input="1"
             style="width:100%; min-width:40px; border:none; border-bottom:1px solid #ddd;
                    background:transparent; text-align:center; font-size:11px; padding:2px;"
             onchange="savePPG('${cn}',${i},'${key}',this.value)"></td>`;
@@ -4871,6 +4872,80 @@ function renderPPGListTests() {
         </div>
         <p style="font-size:10px; color:#888; margin-top:4px;">💡 Les colonnes N° et Nom sont figées. Défilez horizontalement pour voir les autres données. Les élèves dispensés (D) ont les champs de tests physiques désactivés.</p>
     `;
+
+    // Navigation clavier dans la grille PPG
+    _ppgAttachKeyNav(container);
+}
+
+// Navigation clavier centralisée pour la grille PPG
+function _ppgAttachKeyNav(container) {
+    container.addEventListener('keydown', function(e) {
+        const input = e.target;
+        if (!input.dataset.ppgInput) return; // ignorer les inputs non-PPG
+
+        const key = e.key;
+        if (!['Enter','ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(key)) return;
+
+        // Récupérer tous les inputs navigables (non disabled)
+        const allInputs = Array.from(container.querySelectorAll('input[data-ppg-input="1"]:not([disabled])'));
+        const currentIdx = allInputs.indexOf(input);
+        if (currentIdx === -1) return;
+
+        // Déterminer la position (ligne, colonne) dans le tableau
+        const td    = input.closest('td');
+        const tr    = input.closest('tr');
+        const tbody = tr?.closest('tbody');
+        if (!td || !tr || !tbody) return;
+
+        const colIdx = Array.from(tr.cells).indexOf(td);
+        const rowIdx = Array.from(tbody.rows).indexOf(tr);
+        const numRows = tbody.rows.length;
+
+        let target = null;
+
+        if (key === 'Enter' || key === 'ArrowDown') {
+            e.preventDefault();
+            // Chercher l'input de la même colonne à la ligne suivante
+            for (let r = rowIdx + 1; r < numRows; r++) {
+                const nextTd = tbody.rows[r]?.cells[colIdx];
+                const nextInput = nextTd?.querySelector('input[data-ppg-input="1"]:not([disabled])');
+                if (nextInput) { target = nextInput; break; }
+            }
+            // En fin de liste : passer à la colonne suivante, première ligne
+            if (!target) {
+                const next = allInputs.find((inp, i) => i > currentIdx);
+                if (next) target = next;
+            }
+        }
+        else if (key === 'ArrowUp') {
+            e.preventDefault();
+            for (let r = rowIdx - 1; r >= 0; r--) {
+                const prevTd = tbody.rows[r]?.cells[colIdx];
+                const prevInput = prevTd?.querySelector('input[data-ppg-input="1"]:not([disabled])');
+                if (prevInput) { target = prevInput; break; }
+            }
+        }
+        else if (key === 'ArrowRight') {
+            e.preventDefault();
+            // Prochain input sur la même ligne
+            const rowInputs = Array.from(tr.querySelectorAll('input[data-ppg-input="1"]:not([disabled])'));
+            const rowPos = rowInputs.indexOf(input);
+            if (rowPos < rowInputs.length - 1) target = rowInputs[rowPos + 1];
+        }
+        else if (key === 'ArrowLeft') {
+            e.preventDefault();
+            const rowInputs = Array.from(tr.querySelectorAll('input[data-ppg-input="1"]:not([disabled])'));
+            const rowPos = rowInputs.indexOf(input);
+            if (rowPos > 0) target = rowInputs[rowPos - 1];
+        }
+
+        if (target) {
+            target.focus();
+            target.select();
+            // Scroll vers la cellule cible si hors de vue
+            target.closest('td')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+    });
 }
 
 function printPage() {
