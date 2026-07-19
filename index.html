@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.004'</title>
+    <title>SmartEPS v2.004''</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -607,9 +607,14 @@ input:checked + .slider:before {
     </div>
 
     <div class="section" id="sec-classe">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px">
-        <h2 id="class-title" style="color:var(--main-color1); margin-bottom:5px"></h2>
-        <button class="btn-retour" onclick="showTab('import')">⬅Retour</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <!-- Le titre reste à gauche -->
+            <h2 id="class-title" style="color:var(--main-color1); margin-left: 5px; margin-bottom:5px;"></h2>
+            <!-- Ce bloc pousse les deux boutons ensemble vers la droite -->
+            <div style="margin-left: auto; display: flex; gap: 8px;">
+                <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white; border: none; padding: 5px 10px; cursor: pointer;" onclick="showTab('PPG');">🧬 PPG</button>
+                <button class="btn-retour" style="cursor: pointer;" onclick="showTab('import')">⬅ Retour</button>
+            </div>
         </div>
         <div class="table-container">
             <table>
@@ -4130,7 +4135,7 @@ function _collectPPGData(activeClasses) {
     let vmaValues = [];
     let ages = [], agesG = [], agesF = [];
     let imcValues = [], imcG = [], imcF = [];
-    let imcCounts = { Maigreur: 0, Normal: 0, Surpoids: 0, Obesite: 0 };   // <-- NOUVEAU
+    let imcCounts = { Maigreur: 0, Normal: 0, Surpoids: 0, Obesite: 0 };
     let poids = [], taille = [], bpm = [], detVrt = [], detHrz = [];
     let sprint30 = [], equilibre = [], medball = [], souplAssis = [], souplDebout = [];
     let poidsG = [], poidsF = [], tailleG = [], tailleF = [];
@@ -4139,6 +4144,10 @@ function _collectPPGData(activeClasses) {
     let equilibreG = [], equilibreF = [], medballG = [], medballF = [];
     let souplAssisG = [], souplAssisF = [], souplDeboutG = [], souplDeboutF = [];
     const classMoyennes = {};
+    
+    //Tableaux pour les points de croissance
+    let pointsCroissanceG = []; // {x: age, y: taille_cm}
+    let pointsCroissanceF = [];
 
     activeClasses.forEach(cn => {
         const cl = classesDB[cn];
@@ -4161,7 +4170,6 @@ function _collectPPGData(activeClasses) {
             if (p > 0 && t > 0) {
                 const imc = p / (t * t);
                 imcValues.push(imc);
-                // Comptage des catégories d'IMC
                 if (imc < 18.5) imcCounts.Maigreur++;
                 else if (imc < 25) imcCounts.Normal++;
                 else if (imc < 30) imcCounts.Surpoids++;
@@ -4171,13 +4179,27 @@ function _collectPPGData(activeClasses) {
                 else if (s.index === 'F') imcF.push(imc);
             }
 
-            // --- Âge ---
+            // --- Âge et point de croissance ---
             const age = calcAge(s.dob);
             if (age !== '' && !isNaN(age)) {
                 const ageNum = parseInt(age, 10);
                 ages.push(ageNum);
                 if (s.index === 'G') agesG.push(ageNum);
                 else if (s.index === 'F') agesF.push(ageNum);
+
+                // <-- POINT DE CROISSANCE avec métadonnées
+                if (ageNum >= 12 && ageNum <= 19 && t > 0) {
+                    const tailleCm = t * 100; // conversion m → cm
+                    const meta = {
+                        nom: s.nom,
+                        classe: cn,
+                        sexe: s.index,
+                        taille: tailleCm,
+                        age: ageNum
+                    };
+                    if (s.index === 'G') pointsCroissanceG.push({ x: ageNum, y: tailleCm, meta: meta });
+                    else if (s.index === 'F') pointsCroissanceF.push({ x: ageNum, y: tailleCm, meta: meta });
+                }
             }
 
             const vma = parseFloat(ppg.vma);
@@ -4191,7 +4213,8 @@ function _collectPPGData(activeClasses) {
                 else if (grp === 'D') groupCounts.D++;
             }
 
-            // Collecte des autres valeurs numériques
+            // Collecte des autres valeurs numériques...
+            // (le reste du code est inchangé)
             if (!isNaN(p) && p > 0) { poids.push(p); classPoids.push(p); if (s.index === 'G') poidsG.push(p); else poidsF.push(p); }
             if (!isNaN(t) && t > 0) { taille.push(t); classTaille.push(t); if (s.index === 'G') tailleG.push(t); else tailleF.push(t); }
             const b = parseFloat(ppg.bpm); if (!isNaN(b) && b > 0) { bpm.push(b); if (s.index === 'G') bpmG.push(b); else bpmF.push(b); }
@@ -4218,7 +4241,7 @@ function _collectPPGData(activeClasses) {
     return {
         totalEleves, totalG, totalF, totalD, groupCounts, vmaValues,
         ages, agesG, agesF,
-        imcValues, imcG, imcF, imcCounts,   // <-- NOUVEAU
+        imcValues, imcG, imcF, imcCounts,
         poids, taille, bpm, detVrt, detHrz, sprint30, equilibre, medball, souplAssis, souplDebout,
         poidsG, poidsF, tailleG, tailleF, bpmG, bpmF, detVrtG, detVrtF,
         detHrzG, detHrzF, sprint30G, sprint30F, equilibreG, equilibreF,
@@ -4229,12 +4252,17 @@ function _collectPPGData(activeClasses) {
         avgPoids: avg(poids), avgTaille: avg(taille), avgBpm: avg(bpm),
         avgDetVrt: avg(detVrt), avgDetHrz: avg(detHrz),
         avgSprint30: avg(sprint30), avgEquilibre: avg(equilibre),
-        avgMedball: avg(medball), avgSouplAssis: avg(souplAssis), avgSouplDebout: avg(souplDebout)
+        avgMedball: avg(medball), avgSouplAssis: avg(souplAssis), avgSouplDebout: avg(souplDebout),
+        //Tableaux pour les points de croissance
+        pointsCroissanceG, pointsCroissanceF
     };
 }
 
 // ── Rend les statistiques PPG dans #ppg-content ──────────────
 function renderPPGStats() {
+    ppgView = 'stats';  // <-- Indique que nous sommes en mode Stats
+    _ppgSetActiveBtn('stats');
+    
     const container = document.getElementById('ppg-content');
     if (!container) return;
 
@@ -4296,16 +4324,23 @@ function renderPPGStats() {
         </div>
     `;
 
-    // 2. Graphiques (dans une grille)
+    // 2. Graphiques (grille)
     html += `<div class="stats-grid">`;
     html += `<div class="stats-card"><div class="stats-card-title">🧬 Groupes physiologiques (A/B/C/D)</div><canvas id="chart-ppg-groupes"></canvas></div>`;
-    html += `<div class="stats-grid">`;
     html += `<div class="stats-card"><div class="stats-card-title">📊 Répartition des catégories d'IMC</div><canvas id="chart-ppg-imc"></canvas></div>`;
     html += `</div>`;
-    html += `<div class="stats-card"><div class="stats-card-title">📈 Distribution des VMA (km/h)</div><canvas id="chart-ppg-vma"></canvas></div>`;
+    // Graphiques de croissance (Garçons et Filles) ---
+    html += `<div class="stats-grid" style="margin-top:12px;">`;
+    html += `<div class="stats-card"><div class="stats-card-title">📏 Courbe de croissance – ♂️(taille)</div><canvas id="chart-croissance-g"></canvas></div>`;
+    html += `<div class="stats-card"><div class="stats-card-title">📏 Courbe de croissance – ♀️(taille)</div><canvas id="chart-croissance-f"></canvas></div>`;
     html += `</div>`;
+
     html += `<div class="stats-grid">`;
+    html += `<div class="stats-card"><div class="stats-card-title">📈 Distribution des VMA (km/h)</div><canvas id="chart-ppg-vma"></canvas></div>`;
     html += `<div class="stats-card"><div class="stats-card-title">📊 Moyennes des tests par sexe</div><canvas id="chart-ppg-moyennes"></canvas></div>`;
+    html += `</div>`;
+    
+    html += `<div class="stats-grid">`;
     html += `<div class="stats-card"><div class="stats-card-title">📊 Plage des valeurs (min / moy / max)</div><canvas id="chart-ppg-plage"></canvas></div>`;
     html += `</div>`;
 
@@ -4319,13 +4354,234 @@ function renderPPGStats() {
 
     // Dessiner les graphiques après injection
     setTimeout(() => {
-    _renderPPGChartGroupes(data);
-    _renderPPGChartVMA(data);
-    _renderPPGChartMoyennes(data);
-    _renderPPGChartPlage(data);
-    _renderPPGChartIMCBars(data);          // <-- NOUVEAU
-    _renderPPGStatsTable(data, activeClasses);
+        _renderPPGChartGroupes(data);
+        _renderPPGChartIMCBars(data);
+        _renderPPGChartVMA(data);
+        _renderPPGChartMoyennes(data);
+        _renderPPGChartPlage(data);
+        _renderPPGStatsTable(data, activeClasses);
+        // Nouveaux graphiques de croissance
+        _renderPPGChartCroissanceG(data);
+        _renderPPGChartCroissanceF(data);
     }, 50);
+}
+
+// ── Graphique : Courbe de croissance Garçons ──────────────
+function _renderPPGChartCroissanceG(d) {
+    _destroyPPGChart('croissance-g');
+    const canvas = document.getElementById('chart-croissance-g');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    // Données OMS (Garçons)
+    const ages = [12, 13, 14, 15, 16, 17, 18, 19];
+    const moyG = [154.2, 160.3, 165.8, 170.1, 173.5, 175.9, 177.7, 178.9];
+    const ecartG = [7.4, 7.5, 7.6, 7.6, 7.6, 7.6, 7.5, 7.4];
+
+    const p3G  = moyG.map((m, i) => m - 2 * ecartG[i]);
+    const p97G = moyG.map((m, i) => m + 2 * ecartG[i]);
+
+    const points = d.pointsCroissanceG || [];
+
+    const datasets = [
+        {
+            label: 'P3',
+            data: ages.map((x, i) => ({ x, y: p3G[i] })),
+            type: 'line',
+            borderColor: 'rgb(136, 136, 136)',
+            borderDash: [5, 5],
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.3,
+            order: 2
+        },
+        {
+            label: 'P50',
+            data: ages.map((x, i) => ({ x, y: moyG[i] })),
+            type: 'line',
+            borderColor: 'rgba(0,0,255,0.8)',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.3,
+            order: 2
+        },
+        {
+            label: 'P97',
+            data: ages.map((x, i) => ({ x, y: p97G[i] })),
+            type: 'line',
+            borderColor: 'rgb(136, 136, 136)',
+            borderDash: [5, 5],
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.3,
+            order: 2
+        },
+        {
+            label: 'Élèves',
+            data: points,
+            type: 'scatter',
+            backgroundColor: 'rgba(3,108,140,0.7)',
+            borderColor: '#036c8c',
+            pointRadius: 4,
+            order: 1
+        }
+    ];
+
+    _ppgStatsCharts['croissance-g'] = new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                x: {
+                    type: 'linear',
+                    min: 12,
+                    max: 19.5,
+                    ticks: { stepSize: 1 },
+                    title: { display: true, text: 'Âge (ans)' }
+                },
+                y: {
+                    min: 120,
+                    max: 195,
+                    ticks: { stepSize: 5 },
+                    title: { display: true, text: 'Taille (cm)' }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 10 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const raw = context.raw;
+                            if (raw && raw.meta) {
+                                const m = raw.meta;
+                                return `${m.nom} (${m.classe}) : ${m.age} ans, ${m.taille} cm`;
+                            }
+                            const label = context.dataset.label || '';
+                            const y = context.parsed.y;
+                            return `${label} : ${y} cm`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ── Graphique : Courbe de croissance Filles ──────────────
+function _renderPPGChartCroissanceF(d) {
+    _destroyPPGChart('croissance-f');
+    const canvas = document.getElementById('chart-croissance-f');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    // Données OMS (Filles)
+    const ages = [12, 13, 14, 15, 16, 17, 18, 19];
+    const moyF = [155.6, 158.0, 159.7, 160.5, 161.0, 161.5, 161.7, 162.0];
+    const ecartF = [6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9, 6.9];
+
+    const p3F  = moyF.map((m, i) => m - 2 * ecartF[i]);
+    const p97F = moyF.map((m, i) => m + 2 * ecartF[i]);
+
+    const points = d.pointsCroissanceF || [];
+
+    const datasets = [
+        {
+            label: 'P3',
+            data: ages.map((x, i) => ({ x, y: p3F[i] })),
+            type: 'line',
+            borderColor: 'rgb(136, 136, 136)',
+            borderDash: [5, 5],
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.3,
+            order: 2
+        },
+        {
+            label: 'P50',
+            data: ages.map((x, i) => ({ x, y: moyF[i] })),
+            type: 'line',
+            borderColor: 'rgba(255,0,0,0.8)',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.3,
+            order: 2
+        },
+        {
+            label: 'P97',
+            data: ages.map((x, i) => ({ x, y: p97F[i] })),
+            type: 'line',
+            borderColor: 'rgb(136, 136, 136)',
+            borderDash: [5, 5],
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.3,
+            order: 2
+        },
+        {
+            label: 'Élèves',
+            data: points,
+            type: 'scatter',
+            backgroundColor: 'rgba(233,30,140,0.7)',
+            borderColor: '#e91e8c',
+            pointRadius: 4,
+            order: 1
+        }
+    ];
+
+    _ppgStatsCharts['croissance-f'] = new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                x: {
+                    type: 'linear',
+                    min: 12,
+                    max: 19.5,
+                    ticks: { stepSize: 1 },
+                    title: { display: true, text: 'Âge (ans)' }
+                },
+                y: {
+                    min: 120,
+                    max: 185,
+                    ticks: { stepSize: 5 },
+                    title: { display: true, text: 'Taille (cm)' }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { size: 10 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const raw = context.raw;
+                            if (raw && raw.meta) {
+                                const m = raw.meta;
+                                return `${m.nom} (${m.classe}) : ${m.age} ans, ${m.taille} cm`;
+                            }
+                            const label = context.dataset.label || '';
+                            const y = context.parsed.y;
+                            return `${label} : ${y} cm`;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 // ── Graphique : Répartition des catégories d'IMC (barres verticales) ──
