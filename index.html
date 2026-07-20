@@ -992,7 +992,7 @@ function valLimtGrcT(input) {
         </div>
         <div style="display:flex; margin-left: auto; margin-right: 5px;">
             <button style="background: var(--main-color2); padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px; margin-right: 5px;" onclick="printPage()">🖨️</button>
-            <select id="PPG-filter-class" onchange="document.getElementById('btnPPGStats').style.backgroundColor==='rgb(3, 108, 140)' ? renderPPGStats() : renderPPGListTests()" style="padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px;">
+            <select id="PPG-filter-class" onchange="refreshPPGView()" style="padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px;">
                 <option value="__all__">Toutes les classes</option>
             </select>
         </div>    
