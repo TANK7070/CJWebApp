@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.004''</title>
+    <title>SmartEPS v2.004'''</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -146,6 +146,18 @@
         .menu-item-class:last-child { border-bottom: none; }
 
         .input-date::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; margin: 0; }
+
+        /* Classes clickables dans Stats */
+        .clickable-stats {
+            cursor: pointer;
+            /* color: var(--main-color1);
+            font-weight: bold;
+            transition: color 0.2s; */
+        }
+        .clickable-stats:hover {
+            /* color: var(--accent-color1); */
+            text-decoration: underline;
+        }
 
     /* ============================================================
    MODE SOMBRE — Équivalent au "force dark mode" du navigateur
@@ -3297,7 +3309,7 @@ function _statsChartPlage(d) {
 }
 
 function _statsAvancement(activeClasses) {
-    // Avancement des cycles
+// Barres d'avancement des cycles
     const nbrTotal = getNbrSeances();
     const couleur = pct => pct >= 100 ? '#2ecc71' : pct >= 60 ? '#3498db' : pct >= 30 ? '#f39c12' : '#e74c3c';
     const avancements = [];
@@ -3322,16 +3334,20 @@ function _statsAvancement(activeClasses) {
 
     document.getElementById('stats-avancement').innerHTML = avancements.map(av => {
         const coul = couleur(av.pct);
-        // Génération des segments : un par séance prévue
         const segments = Array.from({ length: av.total }, (_, i) => {
             const isDone = i < av.effectuees;
             return `<div style="flex:1; height:100%; background:${isDone ? coul : '#e0e0e0'}; border-radius:2px; transition:background 0.3s;"></div>`;
         }).join('');
 
+        // Construction du HTML avec lien cliquable
         return `
             <div style="margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
-                    <span><strong>${av.classe}</strong> — ${av.disc}</span>
+                    <span>
+                        <span class="clickable-stats" onclick="openClass('${av.classe}')" title="Ouvrir la classe">${av.classe}</span>
+                        —
+                        <span class="clickable-stats" onclick="openClass('${av.classe}'); setTimeout(() => openCycle('${av.disc}'), 100);" title="Ouvrir le cycle">${av.disc}</span>
+                    </span>
                     <span style="color:${coul}; font-weight:bold;">
                         ${av.effectuees} / ${av.total} séances (${av.pct}%)
                     </span>
@@ -3569,7 +3585,7 @@ function _statsChartSexeMoyenne(d) {
 }
 
 function _statsDispenses(activeClasses) {
-    // Fonction locale pour détecter le genre sans utiliser genderMemory
+// Tableau liste des dispensés
     function detectWithoutMemory(nomComplet) {
         const k = normalize(nomComplet);
         const mots = k.split(" ");
@@ -3614,19 +3630,16 @@ function _statsDispenses(activeClasses) {
         return;
     }
 
-    // --- Calcul des pourcentages G / F ---
     let totalG = 0, totalF = 0;
     dispenses.forEach(d => {
         if (d.sexe === 'G') totalG++;
         else if (d.sexe === 'F') totalF++;
-        // les '?' sont ignorés pour le calcul des pourcentages
     });
     const totalGF = totalG + totalF;
     const pctG = totalGF > 0 ? Math.round((totalG / totalGF) * 100) : 0;
     const pctF = totalGF > 0 ? Math.round((totalF / totalGF) * 100) : 0;
     const sexeHeader = totalGF > 0 ? `Sexe (G: ${pctG}%, F: ${pctF}%)` : 'Sexe';
 
-    // Tri par classe
     dispenses.sort((a, b) => a.classe.localeCompare(b.classe));
 
     let html = `<table style="width:100%; border-collapse:collapse; font-size:13px;">
@@ -3642,7 +3655,9 @@ function _statsDispenses(activeClasses) {
     dispenses.forEach(d => {
         const bgClass = d.sexe === 'G' ? 'bg-row-G' : d.sexe === 'F' ? 'bg-row-F' : '';
         html += `<tr class="${bgClass}">
-            <td style="padding:5px 8px; border:1px solid #eee; font-weight:bold;text-align:left;">${d.classe}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; font-weight:bold;text-align:left;">
+                <span class="clickable-stats" onclick="openClass('${d.classe}')" title="Ouvrir la classe">${d.classe}</span>
+            </td>
             <td style="padding:5px 8px; border:1px solid #eee; text-align:left;">${d.nom}</td>
             <td style="padding:5px 8px; border:1px solid #eee; text-align:left; font-weight:bold;">${d.sexe}</td>
         </tr>`;
@@ -3663,7 +3678,9 @@ function _statsTable(d, activeClasses) {
         const dd = cl.students?.filter(s=>s.index==='D').length || 0;
         const moy = d.classMoyMap[cn] || '—';
         return `<tr>
-            <td style="padding:5px 8px; border:1px solid #eee; font-weight:bold">${cn}</td>
+            <td style="padding:5px 8px; border:1px solid #eee; font-weight:bold">
+                <span class="clickable-stats" onclick="openClass('${cn}')" title="Ouvrir la classe">${cn}</span>
+            </td>
             <td style="padding:5px 8px; border:1px solid #eee; text-align:center">${nb}</td>
             <td style="padding:5px 8px; border:1px solid #eee; text-align:center">${g}</td>
             <td style="padding:5px 8px; border:1px solid #eee; text-align:center">${f}</td>
@@ -3671,6 +3688,7 @@ function _statsTable(d, activeClasses) {
             <td style="padding:5px 8px; border:1px solid #eee; text-align:center; font-weight:bold; color:var(--main-color1)">${moy}</td>
         </tr>`;
     }).join('');
+
     document.getElementById('stats-table').innerHTML = `
         <table style="width:100%; border-collapse:collapse; font-size:13px;">
             <thead>
@@ -3686,6 +3704,7 @@ function _statsTable(d, activeClasses) {
             <tbody>${rows}</tbody>
         </table>`;
 }
+
 function renderStats() {
 // ── Orchestrateur principal des diagrammes et tableaux de statistiques 
     if (!document.getElementById('sec-stats')?.classList.contains('active')) return;
