@@ -123,5 +123,10 @@
 	*Stats PPG: Graph barres IMC
 	*les "D" dans liste TestsPPG
 	
-2.004'	:
+2.004	:
+	*noms des classe et cycles cliquables dans stats
 	*navigation clavier dans TestsPPG
+	*courbe de croissance GF (diagramme points)
+
+2.005	:
+	*impression PPG: Liste
