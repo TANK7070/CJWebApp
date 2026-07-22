@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.004'''</title>
+    <title>SmartEPS v2.005'</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -4944,6 +4944,7 @@ function _ppgRefreshFilter() {
 }
 
 function renderPPGListTests() {
+     ppgView = 'tests';
     _ppgSetActiveBtn('tests');
     const container = document.getElementById('ppg-content');
     const sel = document.getElementById('PPG-filter-class');
@@ -5223,6 +5224,191 @@ function _ppgAttachKeyNav(container) {
     });
 }
 
+// Sous‑template pour une page de classe (copie fidèle de votre modèle)
+const PPG_PAGE_TEMPLATE = `<table>
+  <colgroup>
+      <col style="width:6%">
+      <col style="width:18%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:6%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+      <col style="width:5%">
+  </colgroup>
+  <tbody>
+    <!-- Entête -->
+    <tr>
+        <td colspan="2" style="text-align:center; font-weight:bold; font-size:8pt;">{{NIVEAU}}</td>
+        <td colspan="12" style="text-align:center; font-weight:bold; font-size:8pt;">PPG &amp; Tests physiques-Anthropométrie</td>
+        <td colspan="2" style="text-align:center; font-weight:bold; font-size:7pt;">AS:</td>
+        <td colspan="6" style="text-align:center; font-weight:bold; font-size:7pt;">{{AS}}</td>
+    </tr>
+    <tr>
+        <td rowspan="5" style="text-align:center; font-weight:bold; font-size:7pt;">N°</td>
+        <td rowspan="4" style="text-align:center; font-weight:bold; font-size:8pt;">{{CLASSE}}</td>
+        <td colspan="5" style="text-align:center; font-weight:bold; font-size:7pt;">Observations</td>
+        <td colspan="7" style="text-align:center; font-weight:bold; font-size:7pt;">Longueur de piste (m):</td>
+        <td colspan="2" style="text-align:center; font-weight:bold; font-size:7pt;">{{PISTE}}</td>
+        <td colspan="6" style="text-align:center; font-weight:bold; font-size:7pt;">Assiduité</td>
+    </tr>
+    <tr>
+        <td style="text-align:center; font-weight:bold; font-size:7pt;">D</td>
+        <td style="text-align:center; font-weight:bold; font-size:7pt;">{{TOTD}}</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Poids (Kg)</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Taille (m)</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">BPM (repos)</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Détente Vrtcl. (cm)</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Détente Hrztl. (cm)</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Navette (Palier)</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Grp. Physiologique</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Sprint 30m (s)</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Equilibre (s)</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Lnc MedBall (3kg)</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Soupls. Assis (cm)</td>
+        <td rowspan="4" style="text-align:center; font-size:6pt;" class="vertical-text">Soupls. Debout (cm)</td>
+        <td style="text-align:center; font-weight:bold; font-size:6pt;">S1</td>
+        <td style="text-align:center; font-weight:bold; font-size:6pt;">S2</td>
+        <td style="text-align:center; font-weight:bold; font-size:6pt;">S3</td>
+        <td style="text-align:center; font-weight:bold; font-size:6pt;">S4</td>
+        <td style="text-align:center; font-weight:bold; font-size:6pt;">S5</td>
+        <td style="text-align:center; font-weight:bold; font-size:6pt;">S6</td>
+    </tr>
+    <tr>
+        <td style="text-align:center; font-weight:bold; font-size:7pt;">G</td>
+        <td style="text-align:center; font-weight:bold; font-size:7pt;">{{TOTG}}</td>
+        <td rowspan="3" style="text-align:center;"></td>
+        <td rowspan="3" style="text-align:center;"></td>
+        <td rowspan="3" style="text-align:center;"></td>
+        <td rowspan="3" style="text-align:center;"></td>
+        <td rowspan="3" style="text-align:center;"></td>
+        <td rowspan="3" style="text-align:center;"></td>
+    </tr>
+    <tr>
+        <td style="text-align:center; font-weight:bold; font-size:7pt;">F</td>
+        <td style="text-align:center; font-weight:bold; font-size:7pt;">{{TOTF}}</td>
+    </tr>
+    <tr>
+        <td style="font-weight:bold; font-size:7pt;">Nom & Prénom</td>
+        <td style="text-align:center; font-weight:bold; font-size:7pt;">Sx</td>
+        <td style="text-align:center; font-weight:bold; font-size:7pt;">Âge</td>
+    </tr>
+    {{ELEV_ROWS}}
+  </tbody>
+</table>`;
+
+// Générateur de ligne élève (inchangé)
+function _generatePPGStudentRow(student, num) {
+    const ppg = student.ppg || {};
+    const age = calcAge(student.dob);
+    const vmaKey = (appSettings.TstVMA || '1') === '2' ? 'demicooper' : 'navette';
+    const navette = ppg[vmaKey] || '';
+    const grpPhysio = ppg.grpPhysio || '';
+    const poids = ppg.poids || '';
+    const taille = ppg.taille || '';
+    const bpm = ppg.bpm || '';
+    const detVrt = ppg.detVrt || '';
+    const detHrz = ppg.detHrz || '';
+    const sprint30 = ppg.sprint30 || '';
+    const equilibre = ppg.equilibre || '';
+    const medball = ppg.medball || '';
+    const souplAssis = ppg.souplAssis || '';
+    const souplDebout = ppg.souplDebout || '';
+
+    return `<tr>
+        <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${num}</td>
+        <td style="font-weight:bold; font-size:6.5pt; padding-left:2px;">${student.nom}</td>
+        <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${student.index || '?'}</td>
+        <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${age}</td>
+        <td style="text-align:center; font-size:6.5pt;">${poids}</td>
+        <td style="text-align:center; font-size:6.5pt;">${taille}</td>
+        <td style="text-align:center; font-size:6.5pt;">${bpm}</td>
+        <td style="text-align:center; font-size:6.5pt;">${detVrt}</td>
+        <td style="text-align:center; font-size:6.5pt;">${detHrz}</td>
+        <td style="text-align:center; font-size:6.5pt;">${navette}</td>
+        <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${grpPhysio}</td>
+        <td style="text-align:center; font-size:6.5pt;">${sprint30}</td>
+        <td style="text-align:center; font-size:6.5pt;">${equilibre}</td>
+        <td style="text-align:center; font-size:6.5pt;">${medball}</td>
+        <td style="text-align:center; font-size:6.5pt;">${souplAssis}</td>
+        <td style="text-align:center; font-size:6.5pt;">${souplDebout}</td>
+        <td style="text-align:center; font-size:6.5pt;"></td>
+        <td style="text-align:center; font-size:6.5pt;"></td>
+        <td style="text-align:center; font-size:6.5pt;"></td>
+        <td style="text-align:center; font-size:6.5pt;"></td>
+        <td style="text-align:center; font-size:6.5pt;"></td>
+        <td style="text-align:center; font-size:6.5pt;"></td>
+    </tr>`;
+}
+
+// Fonction de construction de la page (asynchrone)
+async function buildPPGTestsPage() {
+    // Charger le template global (enveloppe)
+    const tplGlobal = await loadTemplate('ppg_tests');
+    // Charger le template de page (tableau d'une classe)
+    const tplPage = await loadTemplate('ppg_tests_multiclasse');
+
+    const activeClasses = _ppgActiveClasses();
+    if (activeClasses.length === 0) {
+        return fillTemplate(tplGlobal, { PAGES: '<p style="text-align:center; padding:20px;">Aucune classe sélectionnée.</p>' });
+    }
+
+    const today = new Date();
+    const annee = today.getFullYear();
+    const AS = today.getMonth() < 8 ? `${annee - 1} / ${annee}` : `${annee} / ${annee + 1}`;
+    const piste = appSettings.Piste || '200';
+
+    let pagesHTML = '';
+
+    activeClasses.forEach((className, idx) => {
+        const cl = classesDB[className];
+        if (!cl) return;
+        const students = cl.students || [];
+        const totalG = students.filter(s => s.index === 'G').length;
+        const totalF = students.filter(s => s.index === 'F').length;
+        const totalD = students.filter(s => s.index === 'D').length;
+        const niveau = getNiveauFromName(className);
+
+        // Générer les lignes élèves
+        const elevRows = students.map((s, i) => _generatePPGStudentRow(s, i + 1)).join('');
+
+        // Remplir la page de la classe
+        let pageHTML = fillTemplate(tplPage, {
+            NIVEAU: niveau,
+            CLASSE: className,
+            TOTG: totalG,
+            TOTF: totalF,
+            TOTD: totalD,
+            PISTE: piste,
+            AS: AS,
+            ELEV_ROWS: elevRows
+        });
+
+        // Ajouter un saut de page entre les classes
+        if (idx < activeClasses.length - 1) {
+            pageHTML += '<div class="page-break"></div>';
+        }
+        pagesHTML += pageHTML;
+    });
+
+    // Insérer toutes les pages dans le template global
+    return fillTemplate(tplGlobal, { PAGES: pagesHTML });
+}
+
 function printPage() {
     const activeSection = document.querySelector('.section.active')?.id;
 
@@ -5232,6 +5418,16 @@ function printPage() {
     }
     else if (activeSection === 'sec-stats') {
         printAsPDF(buildStatsPage());
+    }
+    else if (activeSection === 'sec-PPG') {
+    if (ppgView === 'tests') {
+        buildPPGTestsPage().then(html => printAsPDF(html))
+            .catch(e => alert("Erreur impression PPG Tests : " + e.message));
+    } else if (ppgView === 'stats') {
+        alert("Impression des statistiques PPG non encore implémentée.");
+    } else {
+        alert("Aucun affichage PPG actif.");
+    }
     }
     else {
         alert("Impression non disponible sur cet onglet pour l'instant.");
