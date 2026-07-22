@@ -5357,10 +5357,46 @@ function _generatePPGStudentRow(student, num) {
 
 // Fonction de construction de la page (asynchrone)
 async function buildPPGTestsPage() {
-    // Charger le template global (enveloppe)
-    const tplGlobal = await loadTemplate('ppg_tests');
-    // Charger le template de page (tableau d'une classe)
-    const tplPage = await loadTemplate('ppg_tests_multiclasse');
+    let tplGlobal, tplPage;
+    try {
+        tplGlobal = await loadTemplate('ppg_tests');
+        tplPage = await loadTemplate('ppg_tests_multiclasse');
+    } catch(e) {
+        // Fallback : templates intégrés
+        console.warn("Chargement des templates PPG externes échoué, utilisation des templates intégrés.", e);
+        tplGlobal = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>PPG - {{CLASSE}}</title>
+<style>
+    strong { font-weight: bold; }
+    @page { size: A4 portrait; margin: 5mm; }
+    .vertical-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; padding: 4px 1px; font-size: 6pt; }
+    body { font-family: Tahoma, Arial, sans-serif; font-size: 7pt; padding: 10px; margin: 0; }
+    table { border-collapse: collapse; table-layout: fixed; width: 100%; }
+    td, th { border: 1px solid #000; padding: 1px 2px; font-size: 6.5pt; line-height: 1.1; vertical-align: middle; overflow-wrap: break-word; word-break: break-word; }
+    .page-break { page-break-after: always; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } table { page-break-inside: avoid; } }
+</style>
+</head>
+<body>{{PAGES}}</body>
+</html>`;
+        tplPage = `<table>
+  <colgroup>
+      <col style="width:6%"><col style="width:18%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:6%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%">
+  </colgroup>
+  <tbody>
+    <tr><td colspan="2" style="text-align:center;font-weight:bold;font-size:8pt;">{{NIVEAU}}</td><td colspan="12" style="text-align:center;font-weight:bold;font-size:8pt;">PPG &amp; Tests physiques-Anthropométrie</td><td colspan="2" style="text-align:center;font-weight:bold;font-size:7pt;">AS:</td><td colspan="6" style="text-align:center;font-weight:bold;font-size:7pt;">{{AS}}</td></tr>
+    <tr><td rowspan="5" style="text-align:center;font-weight:bold;font-size:7pt;">N°</td><td rowspan="4" style="text-align:center;font-weight:bold;font-size:8pt;">{{CLASSE}}</td><td colspan="5" style="text-align:center;font-weight:bold;font-size:7pt;">Observations</td><td colspan="7" style="text-align:center;font-weight:bold;font-size:7pt;">Longueur de piste (m):</td><td colspan="2" style="text-align:center;font-weight:bold;font-size:7pt;">{{PISTE}}</td><td colspan="6" style="text-align:center;font-weight:bold;font-size:7pt;">Assiduité</td></tr>
+    <tr><td style="text-align:center;font-weight:bold;font-size:7pt;">D</td><td style="text-align:center;font-weight:bold;font-size:7pt;">{{TOTD}}</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Poids (Kg)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Taille (m)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">BPM (repos)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Détente Vrtcl. (cm)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Détente Hrztl. (cm)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Navette (Palier)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Grp. Physiologique</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Sprint 30m (s)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Equilibre (s)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Lnc MedBall (3kg)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Soupls. Assis (cm)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Soupls. Debout (cm)</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S1</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S2</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S3</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S4</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S5</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S6</td></tr>
+    <tr><td style="text-align:center;font-weight:bold;font-size:7pt;">G</td><td style="text-align:center;font-weight:bold;font-size:7pt;">{{TOTG}}</td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td></tr>
+    <tr><td style="text-align:center;font-weight:bold;font-size:7pt;">F</td><td style="text-align:center;font-weight:bold;font-size:7pt;">{{TOTF}}</td></tr>
+    <tr><td style="font-weight:bold;font-size:7pt;">Nom & Prénom</td><td style="text-align:center;font-weight:bold;font-size:7pt;">Sx</td><td style="text-align:center;font-weight:bold;font-size:7pt;">Âge</td></tr>
+    {{ELEV_ROWS}}
+  </tbody>
+</table>`;
+    }
 
     const activeClasses = _ppgActiveClasses();
     if (activeClasses.length === 0) {
@@ -5383,10 +5419,8 @@ async function buildPPGTestsPage() {
         const totalD = students.filter(s => s.index === 'D').length;
         const niveau = getNiveauFromName(className);
 
-        // Générer les lignes élèves
         const elevRows = students.map((s, i) => _generatePPGStudentRow(s, i + 1)).join('');
 
-        // Remplir la page de la classe
         let pageHTML = fillTemplate(tplPage, {
             NIVEAU: niveau,
             CLASSE: className,
@@ -5398,14 +5432,12 @@ async function buildPPGTestsPage() {
             ELEV_ROWS: elevRows
         });
 
-        // Ajouter un saut de page entre les classes
         if (idx < activeClasses.length - 1) {
             pageHTML += '<div class="page-break"></div>';
         }
         pagesHTML += pageHTML;
     });
 
-    // Insérer toutes les pages dans le template global
     return fillTemplate(tplGlobal, { PAGES: pagesHTML });
 }
 
