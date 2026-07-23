@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.005'</title>
+    <title>SmartEPS v2.007</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -624,7 +624,7 @@ input:checked + .slider:before {
             <h2 id="class-title" style="color:var(--main-color1); margin-left: 5px; margin-bottom:5px;"></h2>
             <!-- Ce bloc pousse les deux boutons ensemble vers la droite -->
             <div style="margin-left: auto; display: flex; gap: 8px;">
-                <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white; border: none; padding: 5px 10px; cursor: pointer;" onclick="showTab('PPG');">🧬 PPG</button>
+                <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white; border: none; padding: 5px 10px; cursor: pointer;" onclick="_ppgForceClassFilter = currentClass; showTab('PPG');">🧬 PPG</button>
                 <button class="btn-retour" style="cursor: pointer;" onclick="showTab('import')">⬅ Retour</button>
             </div>
         </div>
@@ -685,7 +685,7 @@ input:checked + .slider:before {
             
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                 <button type="button" id="btnStats" style="background-color: #698c8f; color: white;" onclick="showTab('stats')">📊 Statistiques</button>
-                <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white;" onclick="showTab('PPG');">🧬 PPG</button>
+                <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white;" onclick="_ppgForceClassFilter = null; showTab('PPG');">🧬 PPG</button>
                 <button type="button" id="SupprPNom" style="background-color: #e74c3c; color: white;">🗑️ Supprimer Nom/Prénom</button>
                 <button type="button" id="Aprc" style="background-color: #2ecc71; color: white;" onclick="showTab('appreciation')">👁️ Aperçu Appréciation</button>
                 <button type="button" id="CapSprt" style="background-color: #f39c12; color: white;">🏃‍♂️ ParamCapSprtv</button>
@@ -884,7 +884,6 @@ function valLimtGrcT(input) {
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
         <h2 style="color:var(--main-color1); margin-bottom:2px">📊 Stats</h2>
         <div style="display:flex; margin-left: auto; margin-right: 5px;">
-            <button style="background: var(--main-color2); padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px; margin-right: 5px;" onclick="printPage()">🖨️</button>
             <select id="stats-filter-class" onchange="renderStats()" style="padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px;">
                 <option value="__all__">Toutes les classes</option>
             </select>
@@ -991,12 +990,11 @@ function valLimtGrcT(input) {
             <button type="button" id="btnPPGStats" style="background-color: #698c8f; color: white;" onclick="renderPPGStats()">📊 Stats</button>
         </div>
         <div style="display:flex; margin-left: auto; margin-right: 5px;">
-            <button style="background: var(--main-color2); padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px; margin-right: 5px;" onclick="printPage()">🖨️</button>
             <select id="PPG-filter-class" onchange="refreshPPGView()" style="padding:4px 8px; border-radius:8px; border:1px solid #ccc; font-size:12px;">
                 <option value="__all__">Toutes les classes</option>
             </select>
         </div>    
-            <button class="btn-retour" onclick="showTab('settings')">⬅ Retour</button> 
+            <button id="ppg-back-btn" class="btn-retour">⬅ Retour</button> 
     </div>
     <div id="ppg-content" style="padding: 5px; max-height: 75vh; overflow-y: auto;">
             
@@ -2075,6 +2073,51 @@ function switchToUser(doti) {
     closeUserSwitchModal();
 }
 
+// ============================================================
+// SUPPRESSION D'UN UTILISATEUR (DEPUIS LE MENU CHANGER DE PROF)
+// ============================================================
+function deleteUser(doti) {
+    doti = String(doti);
+    const currentDoti = appSettings.Doti ? String(appSettings.Doti) : null;
+
+    // Sécurité : on empêche de supprimer le profil actif
+    if (doti === currentDoti) {
+        alert("❌ Vous ne pouvez pas supprimer votre propre profil actif.");
+        return;
+    }
+
+    if (!usersRegistry[doti]) {
+        alert("Utilisateur introuvable.");
+        return;
+    }
+
+    // Confirmation renforcée
+    const userName = usersRegistry[doti].User || 'sans nom';
+    if (!confirm(`⚠️ Voulez-vous vraiment supprimer définitivement l'utilisateur "${userName}" (Doti: ${doti}) ?\nToutes ses données (classes, notes, paramètres) seront effacées définitivement.\nIl est fortement conseillé d'enregistrer une sauvegarde de ses données avant de procéder à la suppression de son profil.`)) {
+        return;
+    }
+
+    // 1. Retirer de l'annuaire des utilisateurs
+    delete usersRegistry[doti];
+    localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(usersRegistry));
+
+    // 2. Supprimer les données cloisonnées (classes, mémoire des genres, paramètres)
+    localStorage.removeItem(STORAGE_KEY + "::" + doti);
+    localStorage.removeItem(ML_KEY + "::" + doti);
+    localStorage.removeItem(SETTINGS_KEY + "::" + doti);
+
+    // 3. Nettoyer le cache du dernier utilisateur enregistré si nécessaire
+    if (_lastRegisteredDoti === doti) {
+        _lastRegisteredDoti = null;
+        localStorage.removeItem(ACTIVE_DOTI_KEY);
+    }
+
+    alert(`✅ Utilisateur "${userName}" supprimé avec succès.`);
+
+    // 4. Rafraîchir la liste affichée dans le menu flottant
+    openUserSwitchModal();
+}
+
 // Crée un nouveau profil vierge (l'utilisateur devra renseigner User + Doti)
 function createNewUser() {
     // 1. Sauvegarder le profil courant s'il est configuré
@@ -2126,10 +2169,28 @@ function openUserSwitchModal() {
     dotis.forEach(doti => {
         const info = usersRegistry[doti];
         const isActive = doti === currentDoti;
+
         const btn = document.createElement("button");
-        btn.style = `width:100%; text-align:left; padding:10px; border-radius:6px; border:1px solid #ddd; cursor:pointer; background:${isActive ? 'var(--main-color1)' : '#f5f5f5'}; color:${isActive ? 'white' : '#333'};`;
+        btn.style = `width:100%; text-align:left; padding:10px; border-radius:6px; border:1px solid #ddd; cursor:pointer; background:${isActive ? 'var(--main-color1)' : '#f0f0f0'}; color:${isActive ? 'white' : '#333'}; transition:0.2s;`;
         btn.innerHTML = `👤 ${info.User || '(sans nom)'}<br><small style="opacity:0.8;">Doti: ${doti}${info.Etblsmnt ? ' • ' + info.Etblsmnt : ''}</small>${isActive ? ' ✅' : ''}`;
+
+        // Action principale : clic gauche = changer de professeur
         btn.onclick = () => switchToUser(doti);
+
+        // --- NOUVEAU : Clic droit = supprimer l'utilisateur ---
+        btn.title = isActive ? "Utilisateur actif" : "Clic droit pour supprimer cet utilisateur";
+        btn.oncontextmenu = (e) => {
+            e.preventDefault(); // Empêche le menu contextuel par défaut du navigateur
+
+            if (isActive) {
+                alert("❌ Vous ne pouvez pas supprimer votre propre profil actif. Changez d'utilisateur d'abord.");
+                return;
+            }
+
+            // La confirmation et la suppression sont gérées dans deleteUser()
+            deleteUser(doti);
+        };
+
         list.appendChild(btn);
     });
 
@@ -2289,12 +2350,24 @@ function verifierEtChargerProfil() {
     }
 }
 
+let _ppgOriginClass = null;   // conserve la classe d'origine pour le bouton Retour
+
 function showTab(id) {
     document.querySelectorAll(".section, .tab").forEach(el => el.classList.remove("active"));
     document.getElementById("sec-" + id).classList.add("active");
     document.getElementById("tab-" + id)?.classList.add("active");
-    if (id === 'stats') setTimeout(renderStats, 50);
-    if (id === 'PPG') setTimeout(refreshPPGView, 50);
+
+    if (id === 'stats') {
+        setTimeout(renderStats, 50);
+    }
+    if (id === 'PPG') {
+        // Sauvegarder la classe d'origine avant que le filtre ne soit réinitialisé
+        _ppgOriginClass = _ppgForceClassFilter;
+        setTimeout(() => {
+            refreshPPGView();
+            updatePPGRetour(); // met à jour le comportement du bouton Retour
+        }, 50);
+    }
 }
 
 function updateGender(idx, val) {
@@ -2635,6 +2708,31 @@ async function importAndLinkExcel() {
 }
 
 // ============================================================
+//  RENOMMAGE SILENCIEUX DU FICHIER LIÉ (amélioration progressive)
+//  Tente de renommer le fichier lié avec la date/heure actuelles
+//  via FileSystemHandle.move(). Cette méthode n'est pas encore
+//  supportée par tous les navigateurs pour les fichiers locaux
+//  (hors OPFS) : si elle échoue ou n'existe pas, on ne fait rien
+//  et le fichier garde simplement son nom actuel, sans interrompre
+//  ni notifier l'utilisateur.
+// ============================================================
+async function _tryRenameLinkedFile() {
+    if (!fileHandle || typeof fileHandle.move !== 'function') return;
+    try {
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+        const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
+        const newName = `SmartEPS_${userName}_Backup_${dateStr}_${timeStr}.xlsx`;
+        await fileHandle.move(newName);
+        await _saveHandleIDB(fileHandle); // le handle reste valide après renommage, on rafraîchit juste la persistance
+    } catch (err) {
+        // Échec silencieux : API non supportée, permission refusée, etc.
+        console.warn("Renommage automatique du fichier lié impossible (non bloquant):", err.message);
+    }
+}
+
+// ============================================================
 //  ENREGISTREMENT EXCEL (silencieux en tâche de fond)
 // ============================================================
 async function saveToExcel(forceNewFile = false) {
@@ -2645,10 +2743,10 @@ async function saveToExcel(forceNewFile = false) {
 
     const wb = XLSX.utils.book_new();
     const disciplines = Object.keys(OBSERVATION_DATA);
-    const nbrS = getNbrSeances(); // nombre de séances/cycle, configurable (Paramètres > NbrSCyl)
+    const nbrS = getNbrSeances();
 
     // ==========================================
-    // 1. GENERATION DES FEUILLES DE CLASSES (INCHANGÉ)
+    // 1. GENERATION DES FEUILLES DE CLASSES
     // ==========================================
     for (let className in classesDB) {
         const students = classesDB[className].students;
@@ -2657,31 +2755,51 @@ async function saveToExcel(forceNewFile = false) {
         const matrix = [];
         const merges = [];
 
-        const row1 = ["", "", "", ""]; 
+        const row1 = ["", "", "", ""];
         const row2 = ["", "", "", ""];
         const row3 = ["N°", "Code Massar", "Nom & Prénom", "Genre (Sx)"];
 
-        let currentColIdx = 4; 
+        let currentColIdx = 4;
 
+        // ---- 1.1 AJOUT DES COLONNES PPG (TESTS PHYSIQUES) ----
+        const ppgLabels = ['Âge', 'Poids (kg)', 'Taille (m)', 'BPM (repos)',
+                           'Dét. Vrt. (cm)', 'Dét. Hrz. (cm)', 'Test VMA',
+                           'VMA (km/h)', 'Grp. Physio.', 'Sprint 30m (s)',
+                           'Equilibre (s)', 'MedBall (3kg)',
+                           'Soupl. Assis (cm)', 'Soupl. Debout (cm)'];
+        const ppgCount = ppgLabels.length;
+        const vmaKey = appSettings.TstVMA === '2' ? 'demicooper' : 'navette';
+
+        // Ligne 1 : titre fusionné "PPG & Tests Physiques"
+        row1.push("PPG & Tests Physiques");
+        for (let i = 1; i < ppgCount; i++) row1.push("");
+        merges.push({ s: { r: 0, c: currentColIdx }, e: { r: 0, c: currentColIdx + ppgCount - 1 } });
+
+        // Lignes 2 et 3 : intitulés des colonnes
+        row2.push(...ppgLabels);
+        row3.push(...ppgLabels);
+        currentColIdx += ppgCount;
+
+        // ---- 1.2 AJOUT DES CYCLES (DISCIPLINES) ----
         disciplines.forEach(discKey => {
             const discConfig = OBSERVATION_DATA[discKey];
-            const isSportCo = discKey.toUpperCase().includes("BASKET") || 
-                              discKey.toUpperCase().includes("HAND") || 
-                              discKey.toUpperCase().includes("VOLLEY") || 
+            const isSportCo = discKey.toUpperCase().includes("BASKET") ||
+                              discKey.toUpperCase().includes("HAND") ||
+                              discKey.toUpperCase().includes("VOLLEY") ||
                               discKey.toUpperCase().includes("SPORT.CO");
-            
+
             const perfFieldsCount = isSportCo ? 0 : (discConfig.fields.filter(f => f.startsWith('p')).length || 3);
-            const totalDiscCols = nbrS + 4 + 1 + (isSportCo ? 0 : (perfFieldsCount + 2)); 
+            const totalDiscCols = nbrS + 4 + 1 + (isSportCo ? 0 : (perfFieldsCount + 2));
 
             row1.push(discConfig.title);
             for (let m = 1; m < totalDiscCols; m++) row1.push("");
             merges.push({ s: { r: 0, c: currentColIdx }, e: { r: 0, c: currentColIdx + totalDiscCols - 1 } });
 
             for (let s = 1; s <= nbrS; s++) row2.push(`S${s}`);
-            row2.push("Evaluation Cycle"); for(let m=1; m<4; m++) row2.push(""); 
+            row2.push("Evaluation Cycle"); for(let m=1; m<4; m++) row2.push("");
             merges.push({ s: { r: 1, c: currentColIdx + nbrS }, e: { r: 1, c: currentColIdx + nbrS + 3 } });
-            row2.push(""); 
-            
+            row2.push("");
+
             if (!isSportCo) {
                 row2.push("Performances Terrain"); for(let m=1; m<(perfFieldsCount + 2); m++) row2.push("");
                 merges.push({ s: { r: 1, c: currentColIdx + nbrS + 5 }, e: { r: 1, c: currentColIdx + nbrS + 5 + perfFieldsCount + 1 } });
@@ -2690,11 +2808,11 @@ async function saveToExcel(forceNewFile = false) {
             const targetDates = (classesDB[className].cycleDates && classesDB[className].cycleDates[discKey]) ? classesDB[className].cycleDates[discKey] : null;
             for (let s = 1; s <= nbrS; s++) {
                 const dateVal = targetDates ? (targetDates[s - 1] || "") : "";
-                row3.push(dateVal); 
+                row3.push(dateVal);
             }
-            
+
             row3.push("Comp.", "Con.", "C. Mot.", "H. Mot.", "Note finale");
-            
+
             if (!isSportCo) {
                 for (let p = 1; p <= perfFieldsCount; p++) row3.push(`Perf. ${p}`);
                 row3.push(discConfig.direction === "min" ? "Meilleur T" : "Meilleur Score", "Nte Hab. Mot.");
@@ -2703,17 +2821,48 @@ async function saveToExcel(forceNewFile = false) {
             currentColIdx += totalDiscCols;
         });
 
+        // ---- 1.3 AJOUT DES COLONNES FINALES (MOYENNE GÉNÉRALE & APPRÉCIATION) ----
+        row1.push(""); row1.push("");
+        row2.push(""); row2.push("");
+        row3.push("Moy. Gnrl.");
+        row3.push("Appréciation");
+        // Pas de fusion spécifique, ce sont deux colonnes simples
+
+        // On ajoute les en-têtes dans la matrice
         matrix.push(row1, row2, row3);
 
+        // ---- 1.4 REMPLISSAGE DES LIGNES ÉLÈVES ----
         students.forEach((student, sIdx) => {
             const rowData = [sIdx + 1, student.massar || "", student.nom || "", student.index || "X"];
 
+            // --- A) Données PPG ---
+            const ppg = student.ppg || {};
+            const age = calcAge(student.dob);
+            const testVal = ppg[vmaKey] || '';
+            rowData.push(
+                age,
+                ppg.poids || '',
+                ppg.taille || '',
+                ppg.bpm || '',
+                ppg.detVrt || '',
+                ppg.detHrz || '',
+                testVal,
+                ppg.vma || '',
+                ppg.grpPhysio || '',
+                ppg.sprint30 || '',
+                ppg.equilibre || '',
+                ppg.medball || '',
+                ppg.souplAssis || '',
+                ppg.souplDebout || ''
+            );
+
+            // --- B) Données des cycles (inchangé) ---
             disciplines.forEach(discKey => {
                 const g = student.grades?.[discKey] || { s: {}, c: [], f: "", obs: {} };
                 const discConfig = OBSERVATION_DATA[discKey];
-                const isSportCo = discKey.toUpperCase().includes("BASKET") || 
-                                  discKey.toUpperCase().includes("HAND") || 
-                                  discKey.toUpperCase().includes("VOLLEY") || 
+                const isSportCo = discKey.toUpperCase().includes("BASKET") ||
+                                  discKey.toUpperCase().includes("HAND") ||
+                                  discKey.toUpperCase().includes("VOLLEY") ||
                                   discKey.toUpperCase().includes("SPORT.CO");
 
                 for (let s = 0; s < nbrS; s++) rowData.push(g.s?.[s] || "");
@@ -2733,16 +2882,48 @@ async function saveToExcel(forceNewFile = false) {
                     rowData.push(g.obs?.best || "", g.obs?.[targetNoteField] || "");
                 }
             });
+
+            // --- C) Moyenne générale et Appréciation (comme dans l'onglet Classe) ---
+            let moyenneGen = "---", appreciation = "---";
+            if (student.index !== "D" && student.index !== "?") {
+                const finals = disciplines
+                    .map(disc => parseFloat(student.grades?.[disc]?.f))
+                    .filter(f => !isNaN(f) && f > 0);
+                if (finals.length > 0) {
+                    const avg = finals.reduce((a, b) => a + b, 0) / finals.length;
+                    moyenneGen = avg.toFixed(2);
+                    // Récupération des appréciations personnalisées
+                    const apps = appSettings.appreciations || {};
+                    const m = avg;
+                    if (m >= 18) appreciation = apps.exc || "Excellent";
+                    else if (m >= 16) appreciation = apps.tb || "Très Bien";
+                    else if (m >= 14) appreciation = apps.b || "Bon travail";
+                    else if (m >= 12) appreciation = apps.p || "Passable";
+                    else if (m >= 10) appreciation = apps.sup || "Travail superficiel";
+                    else if (m >= 8) appreciation = apps.ins || "Insuffisant";
+                    else if (m >= 5) appreciation = apps.absRec || "Absence récurrente";
+                    else appreciation = apps.abs || "Absent-e-";
+                }
+            } else if (student.index === "D") {
+                moyenneGen = "---";
+                appreciation = "Disp.";
+            } else {
+                moyenneGen = "Sx?";
+                appreciation = "Sx?";
+            }
+            rowData.push(moyenneGen, appreciation);
+
             matrix.push(rowData);
         });
 
+        // Création de la feuille Excel pour la classe
         const ws = XLSX.utils.aoa_to_sheet(matrix);
-        ws['!merges'] = merges; 
+        ws['!merges'] = merges;
         XLSX.utils.book_append_sheet(wb, ws, className);
     }
 
     // ==========================================
-    // 2. SAUVEGARDE DE LA BASE DE DONNÉES INTERNE
+    // 2. SAUVEGARDE DE LA BASE DE DONNÉES INTERNE (INCHANGÉ)
     // ==========================================
     const jsonStr = JSON.stringify(classesDB);
     const wsInternal = XLSX.utils.aoa_to_sheet([
@@ -2753,26 +2934,23 @@ async function saveToExcel(forceNewFile = false) {
     ]);
     XLSX.utils.book_append_sheet(wb, wsInternal, "DB_INTERNAL");
 
-    // --- NOUVEAU : MASQUER L'ONGLET DB_INTERNAL ---
+    // Masquer l'onglet DB_INTERNAL
     if (!wb.Workbook) wb.Workbook = {};
     if (!wb.Workbook.Sheets) wb.Workbook.Sheets = [];
-    
-    // On cherche l'index de l'onglet DB_INTERNAL pour lui appliquer le statut caché (Hidden = 1)
     const internalSheetIdx = wb.SheetNames.indexOf("DB_INTERNAL");
     if (internalSheetIdx !== -1) {
         if (!wb.Workbook.Sheets[internalSheetIdx]) wb.Workbook.Sheets[internalSheetIdx] = {};
-        // Hidden = 1 masque l'onglet dans Excel tout en le laissant accessible pour notre code JavaScript
-        wb.Workbook.Sheets[internalSheetIdx].Hidden = 1; 
+        wb.Workbook.Sheets[internalSheetIdx].Hidden = 1;
     }
 
-    // ========================================================
-    // 3. LOGIQUE DE SAUVEGARDE
-    // ========================================================
+    // ==========================================
+    // 3. LOGIQUE DE SAUVEGARDE (INCHANGÉE)
+    // ==========================================
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
     if (forceNewFile) {
-        // ── SAUVEGARDE : nouveau fichier distinct (Blob + <a>, toujours fiable) ──
+        // Sauvegarde en tant que nouvelle copie
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0];
         const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
@@ -2787,14 +2965,12 @@ async function saveToExcel(forceNewFile = false) {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         alert("Copie de sauvegarde enregistrée avec succès !");
-
     } else {
-        // ── ENREGISTRER : tenter l'écriture directe si possible, sinon téléchargement ──
+        // Enregistrement standard (écriture directe ou téléchargement)
         let savedSilently = false;
 
         if (fileHandle && window.showSaveFilePicker) {
             try {
-                // Vérifier/demander la permission d'écriture
                 if (fileHandle.queryPermission) {
                     const perm = await fileHandle.queryPermission({ mode: 'readwrite' });
                     if (perm !== 'granted') {
@@ -2805,6 +2981,7 @@ async function saveToExcel(forceNewFile = false) {
                 await writable.write(blob);
                 await writable.close();
                 savedSilently = true;
+                await _tryRenameLinkedFile(); // tentative de renommage avec date/heure actuelles (non bloquant)
             } catch(err) {
                 if (err.name === 'AbortError') return;
                 console.warn("Écriture directe impossible, bascule en téléchargement:", err.message);
@@ -2812,19 +2989,17 @@ async function saveToExcel(forceNewFile = false) {
         }
 
         if (!savedSilently) {
-            // Pas de fileHandle, ou écriture directe impossible → demander où sauvegarder
             if (window.showSaveFilePicker && !fileHandle) {
                 try {
                     const now = new Date();
                     const dateStr = now.toISOString().split('T')[0];
                     const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
                     const options = {
-                        suggestedName: `SmartEPS_${userName}_Backup_${dateStr}.xlsx`,
+                        suggestedName: `SmartEPS_${userName}_Backup_${dateStr}_${timeStr}.xlsx`,
                         types: [{ description: 'Classeur Excel SmartEPS', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }]
                     };
                     const newHandle = await window.showSaveFilePicker(options);
                     fileHandle = newHandle;
-                    localStorage.setItem(LINK_STORAGE_KEY, "true");
                     await _saveHandleIDB(fileHandle);
                     const writable = await fileHandle.createWritable();
                     await writable.write(blob);
@@ -2837,14 +3012,14 @@ async function saveToExcel(forceNewFile = false) {
             }
 
             if (!savedSilently) {
-                // Téléchargement classique (Firefox/Safari/Mobile ou fallback ultime)
                 const now = new Date();
                 const dateStr = now.toISOString().split('T')[0];
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
-                a.download = `SmartEPS_${userName}_Backup_${dateStr}.xlsx`;
+                const timeStr = now.toTimeString().split(' ')[0];
+                a.download = `SmartEPS_${userName}_Backup_${dateStr}_${timeStr}.xlsx`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -4120,13 +4295,66 @@ function _ppgActiveClasses() {
     return [selected];
 }
 
+
 // ── Statistiques PPG ──────────────────────────────────────────────────────────
 // ============================================================
 // STATISTIQUES PPG (version complète avec graphiques)
 // ============================================================
 
+// Met à jour la destination du bouton Retour de l'onglet PPG
+function updatePPGRetour() {
+    const btn = document.getElementById('ppg-back-btn');
+    if (!btn) return;
+
+    if (_ppgOriginClass && classesDB[_ppgOriginClass]) {
+        // On vient d'une classe : retourner vers cette classe
+        btn.onclick = function() {
+            openClass(_ppgOriginClass);
+            // Optionnel : réinitialiser _ppgOriginClass après usage
+            // _ppgOriginClass = null;
+        };
+        btn.title = "Retourner à la classe " + _ppgOriginClass;
+    } else {
+        // Sinon, retourner vers les paramètres
+        btn.onclick = function() {
+            showTab('settings');
+        };
+        btn.title = "Retourner aux paramètres";
+    }
+}
+
+
 let _ppgStatsCharts = {};
 let ppgView = 'tests'; // 'tests' ou 'stats'
+let _ppgForceClassFilter = null; // classe à présélectionner dans le filtre PPG (ex: venant de la section Classe)
+
+// Applique _ppgForceClassFilter au select du filtre, si défini, puis le réinitialise
+function _applyPPGForceFilter() {
+    if (!_ppgForceClassFilter) return;
+    const target = _ppgForceClassFilter;
+    _ppgForceClassFilter = null;
+    const classes = Object.keys(classesDB);
+    const sel = document.getElementById('PPG-filter-class');
+    if (!sel || !classes.includes(target)) return;
+
+    sel.innerHTML = '';
+    const allOpt = document.createElement('option');
+    allOpt.value = '__all__'; allOpt.textContent = '📚 Toutes les classes';
+    sel.appendChild(allOpt);
+    const niveaux = ['TC', '1BAC', '2BAC', '1AC', '2AC', '3AC'];
+    niveaux.filter(n => classes.some(c => getNiveauFromName(c) === n)).forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = 'niveau:' + n; opt.textContent = '🏷️ Niveau ' + n;
+        sel.appendChild(opt);
+    });
+    classes.slice().sort().forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = '👥 ' + c;
+        if (c === target) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    sel.value = target;
+}
 
 // Bascule entre les vues
 function showPPGView(view) {
@@ -4136,6 +4364,7 @@ function showPPGView(view) {
 
 // Rafraîchit la vue courante
 function refreshPPGView() {
+    _applyPPGForceFilter();
     if (ppgView === 'tests') {
         renderPPGListTests();
     } else {
@@ -4916,6 +5145,160 @@ function _renderPPGStatsTable(d, activeClasses) {
         </table>` : '<p style="color:#888; font-size:13px; padding:8px;">Aucune donnée par classe.</p>';
 }
 
+// creation de la page PPG.HTML complète pour l'export PDF
+function buildPPGStatsPage() {
+    // Récupération des cartes synthèse
+    const cardsContainer = document.querySelector('#ppg-content > div:first-child');
+    let cardsHTML = '';
+    if (cardsContainer) {
+        cardsHTML = cardsContainer.outerHTML;
+    }
+
+    // Récupération du tableau récapitulatif
+    const tableContainer = document.getElementById('ppg-stats-table');
+    let tableHTML = '';
+    if (tableContainer) {
+        tableHTML = tableContainer.innerHTML;
+    }
+
+    // Récupération du filtre actif
+    const sel = document.getElementById('PPG-filter-class');
+    const filterLabel = sel?.value === '__all__' ? 'Toutes les classes' : (sel?.value || '');
+    const prof = appSettings.User || '';
+    const today = new Date().toLocaleDateString('fr-FR');
+
+    // Liste des graphiques PPG à capturer
+    const chartIds = [
+        'chart-ppg-groupes',
+        'chart-ppg-imc',
+		'chart-croissance-g',
+        'chart-croissance-f',
+        'chart-ppg-vma',
+        'chart-ppg-moyennes',
+        'chart-ppg-plage'
+        
+    ];
+
+    let chartsHTML = '';
+    chartIds.forEach(id => {
+        const canvas = document.getElementById(id);
+        if (!canvas) return;
+        // On essaye de récupérer le titre depuis le parent .stats-card-title
+        const card = canvas.closest('.stats-card');
+        let title = '';
+        if (card) {
+            const titleEl = card.querySelector('.stats-card-title');
+            if (titleEl) title = titleEl.textContent;
+        }
+        // Fallback sur l'id
+        if (!title) title = id.replace('chart-ppg-', '').replace(/-/g, ' ').toUpperCase();
+
+        let img;
+        try {
+            img = canvas.toDataURL('image/png');
+        } catch(e) {
+            return; // ignorer si échec
+        }
+        chartsHTML += `
+            <div class="chart-block">
+                <div class="chart-title">${title}</div>
+                <img src="${img}" style="width:100%; height:auto;">
+            </div>
+        `;
+    });
+
+    // Construction de la page HTML
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Statistiques PPG — ${filterLabel}</title>
+    <style>
+        @page { size: A4 portrait; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Tahoma, sans-serif; font-size: 9pt; color: #000; margin: 0; }
+        h1 { font-size: 13pt; color: #036c8c; margin: 0 0 4px 0; }
+        .meta { font-size: 8pt; color: #555; margin-bottom: 10px; }
+        .cards { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .cards > div {
+            flex: 1;
+            min-width: 80px;
+            background: #f0f0f0;
+            border: 1px solid #036c8c;
+            border-radius: 8px;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        .cards > div * { color: #000 !important; }
+        .cards > div .val { font-size: 14pt; font-weight: bold; }
+        .cards > div .lbl { font-size: 7pt; opacity: 0.85; }
+        .cards > div .detail { font-size: 7pt; opacity: 0.7; margin-top: 2px; }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .chart-block {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            break-inside: avoid;
+        }
+        .chart-title {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #036c8c;
+            margin-bottom: 4px;
+        }
+        .section-title {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #036c8c;
+            border-bottom: 1px solid #036c8c;
+            margin: 10px 0 6px 0;
+            padding-bottom: 2px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8pt;
+        }
+        th {
+            background: #036c8c;
+            color: #fff;
+            padding: 4px 6px;
+        }
+        td {
+            padding: 4px 6px;
+            border: 1px solid #eee;
+            text-align: center;
+        }
+        tr:nth-child(even) td { background: #f7f7f7; }
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .chart-block { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 Statistiques PPG</h1>
+    <div class="meta">
+        ${prof ? `Prof : <strong>${prof}</strong> &nbsp;|&nbsp; ` : ''}
+        Filtre : <strong>${filterLabel}</strong> &nbsp;|&nbsp; Édité le : <strong>${today}</strong>
+    </div>
+
+    <div class="cards">${cardsHTML}</div>
+
+    <div class="section-title">📊 Récapitulatif par classe</div>
+    ${tableHTML || '<p style="color:#888;">Aucune donnée par classe.</p>'}
+
+    <div class="section-title">Graphiques</div>
+    <div class="charts-grid">${chartsHTML || '<p style="color:#888;">Aucun graphique disponible.</p>'}</div>
+</body>
+</html>`;
+}
+
 // ── Rafraîchit uniquement le filtre sans re-rendre le contenu ─────────────────
 function _ppgRefreshFilter() {
     const classes = Object.keys(classesDB);
@@ -5456,7 +5839,8 @@ function printPage() {
         buildPPGTestsPage().then(html => printAsPDF(html))
             .catch(e => alert("Erreur impression PPG Tests : " + e.message));
     } else if (ppgView === 'stats') {
-        alert("Impression des statistiques PPG non encore implémentée.");
+        const html = buildPPGStatsPage();
+        printAsPDF(html);
     } else {
         alert("Aucun affichage PPG actif.");
     }
@@ -6079,7 +6463,7 @@ function _showReconnectBanner(savedHandle) {
 
 <!-- Menu changement utilisateur -->
 <div id="user-switch-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center;">
-  <div style="background:white; border-radius:10px; padding:20px; max-width:320px; width:90%; max-height:70vh; overflow-y:auto;">
+  <div style="background:#888; border-radius:10px; padding:20px; max-width:320px; width:90%; max-height:70vh; overflow-y:auto;">
     <h3 style="margin-top:0; color:var(--main-color1);">🧑🏼‍🏫 Changer de professeur</h3>
     <div id="user-switch-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:15px;"></div>
     <button onclick="closeUserSwitchModal()" style="width:100%; padding:8px; border-radius:6px; border:1px solid #f88282; background:#c90606; cursor:pointer;">Annuler</button>
