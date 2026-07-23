@@ -130,3 +130,13 @@
 
 2.005	:
 	*impression PPG: Liste
+	*impression PPG: Stats
+
+2.006	:
+	*interger data PPG dans sauvegarde xls
+	*suppression d'utilisateur par click droit
+
+2.007	:
+	*renommer a jours ficher de sauvegarde
+	*filtre "PPG" selon classe d'origine
+	*Bouton "retour" selon section d'origine
