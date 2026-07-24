@@ -2,10 +2,11 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.007</title>
+    <title>SmartEPS v2.009</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
     <style>
@@ -535,7 +536,7 @@ input:checked + .slider:before {
 
     <div style="display: flex; gap: 10px; align-items: center; position: relative;">
         <button onclick="importAndLinkExcel()" id="btn-link-header" style="background: rgba(255,255,255,0.15); color:white; padding:4px 12px; border-radius:15px; border: 1px solid rgba(117, 117, 117, 0.9); display:none;">
-            🔗<span class="button-label">Lier/Importer</span></button>
+            🔗<span class="button-label">Lier</span></button>
         <button onclick="saveToExcel()" id="btn-save-header" style="background: rgba(255,255,255,0.15); color:white; padding:4px 12px; border-radius:15px; border: 1px solid rgba(117, 117, 117, 0.9); display:none;">
             💾<span class="button-label">Enregistrer</span></button>
         <button onclick="toggleClassesMenu(event)" >
@@ -561,7 +562,8 @@ input:checked + .slider:before {
         <div class="menu-item-class" onclick="createNewUser(); closeMenu();">+🧑🏼‍🏫Nouvel utilisateur</div>
         <div class="menu-item-class" onclick="saveToExcel(); closeMenu();">💾Enregistrer</div>
         <div class="menu-item-class" onclick=" saveToExcel(true); closeMenu();">+💾Sauvegarde</div>
-        <div class="menu-item-class" onclick="importFromExcel(); closeMenu();">🔗Lier/Importer</div>
+        <div class="menu-item-class" onclick="importFromExcel(); closeMenu();">🔗Lier</div>
+        <div class="menu-item-class" onclick="exportNotesToExcel(); closeMenu();">📤Exporter Notes</div>
         <div class="menu-item-class" onclick="closeMenu(); printPage();">🖨️Impression</div>
         <div class="menu-item-class" onclick="closeMenu(); showTab('stats');">📊Statistiques</div>
         <div class="menu-item-class" onclick="showTab('settings'); closeMenu();">⚙️Paramètres</div >
@@ -590,7 +592,7 @@ input:checked + .slider:before {
             <fieldset>
                 <legend>💾 Sauvegarde</legend>
                 <button id="btn-link-main" onclick="importAndLinkExcel()" style="background: rgba(255,255,255,0.15); color: rgb(0, 0, 0); padding:4px 12px; border-radius:15px; border: 1px solid rgba(117, 117, 117, 0.9); display:none;">
-                    🔗 <span class="button-label">Lier / Importer</span>
+                    🔗 <span class="button-label">Lier</span>
                 </button>
     
                 <button id="btn-save-main" onclick="saveToExcel()" style="background: rgba(255,255,255,0.15); color: rgb(0, 0, 0); padding:4px 12px; border-radius:15px; border: 1px solid rgba(117, 117, 117, 0.9); display:none;">
@@ -1553,14 +1555,15 @@ function openClass(name) {
             appreciation = (() => {
                 if (moyenneGen === "---") return "---";
                 const m = parseFloat(moyenneGen);
-                if (m >= 18) return "Excellent";
-                if (m >= 16) return "Très Bien";
-                if (m >= 14) return "Bon travail";
-                if (m >= 12) return "Passable";
-                if (m >= 10) return "Travail superficiel";
-                if (m >= 8) return "Insuffisant";
-                if (m >= 5) return "Absence récurrente";
-                return "Absent-e-";
+                const apps = appSettings.appreciations || {};
+                if (m >= 18) return apps.exc || "Excellent";
+                if (m >= 16) return apps.tb || "Très Bien";
+                if (m >= 14) return apps.b || "Bon travail";
+                if (m >= 12) return apps.p || "Passable";
+                if (m >= 10) return apps.sup || "Travail superficiel";
+                if (m >= 8) return apps.ins || "Insuffisant";
+                if (m >= 5) return apps.absRec || "Absence récurrente";
+                return apps.abs || "Absent-e-";
             })();
         }
 
@@ -1710,21 +1713,19 @@ function getCustomAppreciations() {
 // Fonction pour sauvegarder les appréciations dans les paramètres du profil actif
 function saveAppreciationThresholds(silent = true) {
     const currentApps = getCustomAppreciations();
-    
-    // 1. Sauvegarde dans le profil utilisateur
-    if (typeof currentUserConfig !== "undefined") {
-        currentUserConfig.appreciations = currentApps;
-    } else {
-        if (!window.appSettings) window.appSettings = {};
-        window.appSettings.appreciations = currentApps;
-    }
-    
+
+    // 1. Sauvegarde dans les paramètres globaux réellement utilisés partout dans l'app
+    //    (c'est cette même variable "appSettings" qui est lue en section "Classe")
+    if (!appSettings) appSettings = {};
+    appSettings.appreciations = currentApps;
+
     // 2. Double sécurité : Stockage local direct pour le rafraîchissement de page
     localStorage.setItem("smarteps_app_thresholds", JSON.stringify(currentApps));
-    
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
+
     // 3. Appel de la sauvegarde générale du fichier si elle existe
     if (typeof save === "function") save();
-    
+
     if (!silent) {
         alert("🎯 Paramètres des appréciations enregistrés avec succès !");
     }
@@ -1732,12 +1733,10 @@ function saveAppreciationThresholds(silent = true) {
 
 function loadAppreciationThresholds() {
     let apps = null;
-    
+
     // Détection de la structure active de SmartEPS
-    if (typeof currentUserConfig !== "undefined" && currentUserConfig.appreciations) {
-        apps = currentUserConfig.appreciations;
-    } else if (window.appSettings && window.appSettings.appreciations) {
-        apps = window.appSettings.appreciations;
+    if (appSettings && appSettings.appreciations) {
+        apps = appSettings.appreciations;
     } else {
         // Sécurité complémentaire : lecture directe dans le localStorage si le profil global n'est pas encore prêt
         const localSaved = localStorage.getItem("smarteps_app_thresholds");
@@ -2600,7 +2599,7 @@ function save() {
 function _updateAllButtons() {
     const linked = _isLinked();
 
-    // --- Bouton Lier/Importer ---
+    // --- Bouton Lier ---
     ["btn-link-main", "btn-link-header"].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -4024,7 +4023,7 @@ function _prepareCycleData() {
     const discTitle = OBSERVATION_DATA[currentDisc]?.title || currentDisc;
     const aujourdhui = new Date();
     const annee = aujourdhui.getFullYear();
-    const AS = aujourdhui.getMonth() < 8 ? `${annee - 1} / ${annee}` : `${annee} / ${annee + 1}`;
+    const AS = aujourdhui.getMonth() < 8 ? `${annee - 1}/${annee}` : `${annee}/${annee + 1}`;
 
     const seanceCols    = Array.from({length: nbrS}, () => '<col class="c-s">').join('');
     const seancesHeaders = Array.from({length: nbrS}, (_, i) =>
@@ -5714,7 +5713,7 @@ function _generatePPGStudentRow(student, num) {
 
     return `<tr>
         <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${num}</td>
-        <td style="font-weight:bold; font-size:6.5pt; padding-left:2px;">${student.nom}</td>
+        <td style="font-weight:bold; font-size:8pt; padding-left:2px;">${student.nom}</td>
         <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${student.index || '?'}</td>
         <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${age}</td>
         <td style="text-align:center; font-size:6.5pt;">${poids}</td>
@@ -5738,7 +5737,20 @@ function _generatePPGStudentRow(student, num) {
     </tr>`;
 }
 
+// Génère une ligne vide pour le tableau PPG (impression)
+function _generateEmptyPPGStudentRow(num) {
+    // Le nombre de colonnes est fixe : 22 colonnes (cf. template)
+    // On crée 22 cellules vides (ou avec un espace)
+    const emptyCells = Array(22).fill('<td style="text-align:center; font-size:6.5pt;"></td>').join('');
+    return `<tr>
+        <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${num}</td>
+        ${emptyCells}
+    </tr>`;
+}
+
 // Fonction de construction de la page (asynchrone)
+const PPG_LINES_PER_PAGE = 60; // Ajustez selon vos besoins (ex: 35, 40, 45)
+
 async function buildPPGTestsPage() {
     let tplGlobal, tplPage;
     try {
@@ -5755,10 +5767,11 @@ async function buildPPGTestsPage() {
 <style>
     strong { font-weight: bold; }
     @page { size: A4 portrait; margin: 5mm; }
-    .vertical-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; padding: 4px 1px; font-size: 6pt; }
+    .vertical-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; padding: 4px 1px; font-size: 6pt; font-weight: bold; line-height: 1.1; }
     body { font-family: Tahoma, Arial, sans-serif; font-size: 7pt; padding: 10px; margin: 0; }
     table { border-collapse: collapse; table-layout: fixed; width: 100%; }
-    td, th { border: 1px solid #000; padding: 1px 2px; font-size: 6.5pt; line-height: 1.1; vertical-align: middle; overflow-wrap: break-word; word-break: break-word; }
+    td, th { border: 1px solid #000; padding: 1px 2px; font-size: 6.5pt; line-height: 1.2; vertical-align: middle; overflow-wrap: break-word; word-break: break-word; }
+    tr.header-row { height: 2.5em; }   /* ← SEULEMENT pour les en-têtes */
     .page-break { page-break-after: always; }
     @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } table { page-break-inside: avoid; } }
 </style>
@@ -5767,18 +5780,20 @@ async function buildPPGTestsPage() {
 </html>`;
         tplPage = `<table>
   <colgroup>
-      <col style="width:6%"><col style="width:18%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:6%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%">
+      <col style="width:4%"><col style="width:25%"><col style="width:3%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:3%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%">
   </colgroup>
   <tbody>
-    <tr><td colspan="2" style="text-align:center;font-weight:bold;font-size:8pt;">{{NIVEAU}}</td><td colspan="12" style="text-align:center;font-weight:bold;font-size:8pt;">PPG &amp; Tests physiques-Anthropométrie</td><td colspan="2" style="text-align:center;font-weight:bold;font-size:7pt;">AS:</td><td colspan="6" style="text-align:center;font-weight:bold;font-size:7pt;">{{AS}}</td></tr>
-    <tr><td rowspan="5" style="text-align:center;font-weight:bold;font-size:7pt;">N°</td><td rowspan="4" style="text-align:center;font-weight:bold;font-size:8pt;">{{CLASSE}}</td><td colspan="5" style="text-align:center;font-weight:bold;font-size:7pt;">Observations</td><td colspan="7" style="text-align:center;font-weight:bold;font-size:7pt;">Longueur de piste (m):</td><td colspan="2" style="text-align:center;font-weight:bold;font-size:7pt;">{{PISTE}}</td><td colspan="6" style="text-align:center;font-weight:bold;font-size:7pt;">Assiduité</td></tr>
+    <tr><td colspan="2" style="text-align:center;font-weight:bold;font-size:8pt;">{{NIVEAU}}</td><td colspan="12" style="text-align:center;font-weight:bold;font-size:8pt;">PPG &amp; Tests physiques-Anthropométrie</td><td colspan="2" style="text-align: right;font-weight:bold;font-size:7pt;">AS:</td><td colspan="6" style="text-align:center;font-weight:bold;font-size:7pt;">{{AS}}</td></tr>
+    <tr><td rowspan="5" style="text-align:center;font-weight:bold;font-size:7pt;">N°</td><td rowspan="4" style="text-align:center;font-weight:bold;font-size:8pt;">{{CLASSE}}</td><td colspan="5" style="text-align:center;font-weight:bold;font-size:7pt;">Observations</td><td colspan="7" style="text-align:right;font-weight:bold;font-size:7pt;">Longueur de piste:</td><td colspan="2" style="text-align:center;font-weight:bold;font-size:7pt;">{{PISTE}} m</td><td colspan="6" style="text-align:center;font-weight:bold;font-size:7pt;">Assiduité</td></tr>
     <tr><td style="text-align:center;font-weight:bold;font-size:7pt;">D</td><td style="text-align:center;font-weight:bold;font-size:7pt;">{{TOTD}}</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Poids (Kg)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Taille (m)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">BPM (repos)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Détente Vrtcl. (cm)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Détente Hrztl. (cm)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Navette (Palier)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Grp. Physiologique</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Sprint 30m (s)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Equilibre (s)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Lnc MedBall (3kg)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Soupls. Assis (cm)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Soupls. Debout (cm)</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S1</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S2</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S3</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S4</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S5</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S6</td></tr>
     <tr><td style="text-align:center;font-weight:bold;font-size:7pt;">G</td><td style="text-align:center;font-weight:bold;font-size:7pt;">{{TOTG}}</td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td></tr>
     <tr><td style="text-align:center;font-weight:bold;font-size:7pt;">F</td><td style="text-align:center;font-weight:bold;font-size:7pt;">{{TOTF}}</td></tr>
     <tr><td style="font-weight:bold;font-size:7pt;">Nom & Prénom</td><td style="text-align:center;font-weight:bold;font-size:7pt;">Sx</td><td style="text-align:center;font-weight:bold;font-size:7pt;">Âge</td></tr>
     {{ELEV_ROWS}}
   </tbody>
-</table>`;
+</table>
+<p style="font-size:10px; color:#888; margin-top:4px;text-align:right;">©Taoufik_2026.</p>
+`;
     }
 
     const activeClasses = _ppgActiveClasses();
@@ -5788,7 +5803,7 @@ async function buildPPGTestsPage() {
 
     const today = new Date();
     const annee = today.getFullYear();
-    const AS = today.getMonth() < 8 ? `${annee - 1} / ${annee}` : `${annee} / ${annee + 1}`;
+    const AS = today.getMonth() < 8 ? `${annee - 1}/${annee}` : `${annee}/${annee + 1}`;
     const piste = appSettings.Piste || '200';
 
     let pagesHTML = '';
@@ -5802,7 +5817,17 @@ async function buildPPGTestsPage() {
         const totalD = students.filter(s => s.index === 'D').length;
         const niveau = getNiveauFromName(className);
 
-        const elevRows = students.map((s, i) => _generatePPGStudentRow(s, i + 1)).join('');
+        let elevRows = students.map((s, i) => _generatePPGStudentRow(s, i + 1)).join('');
+        const currentCount = students.length;
+        const totalLines = PPG_LINES_PER_PAGE;
+        if (currentCount < totalLines) {
+            const emptyCount = totalLines - currentCount;
+            let emptyRows = '';
+            for (let i = 0; i < emptyCount; i++) {
+                emptyRows += _generateEmptyPPGStudentRow(currentCount + i + 1);
+            }
+            elevRows += emptyRows;
+        }
 
         let pageHTML = fillTemplate(tplPage, {
             NIVEAU: niveau,
@@ -6340,7 +6365,7 @@ document.getElementById("OK")?.addEventListener("click", function() {
 
 document.addEventListener("DOMContentLoaded", async function() {
     _isDirty = false;
-    _updateAllButtons(); // affiche d'abord Lier/Importer par défaut
+    _updateAllButtons(); // affiche d'abord Lier par défaut
 
     // À insérer dans votre fonction de démarrage ou juste après le chargement des profils :
     loadAppreciationThresholds();
@@ -6353,7 +6378,7 @@ document.addEventListener("DOMContentLoaded", async function() {
     checkFirstUse(); // force l'onglet Paramètres si le profil n'est pas encore configuré
 
     const savedHandle = await _loadHandleIDB();
-    if (!savedHandle) return; // Pas de lien précédent → on reste sur Lier/Importer
+    if (!savedHandle) return; // Pas de lien précédent → on reste sur Lier
 
     // Vérifier si la permission est toujours accordée (ou demander)
     try {
@@ -6403,7 +6428,7 @@ document.addEventListener("DOMContentLoaded", async function() {
 
 // Bannière de reconnexion (si permission "prompt" au chargement)
 function _showReconnectBanner(savedHandle) {
-    // On affiche le bouton Lier/Importer mais avec un libellé "Reconnecter"
+    // On affiche le bouton Lier mais avec un libellé "Reconnecter"
     ["btn-link-main", "btn-link-header"].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -6459,6 +6484,374 @@ function _showReconnectBanner(savedHandle) {
     });
 }
 
+// =====Export des notes vers Massar=====
+// ---- MODALE D'EXPORT ----
+let _exportSelectedCycles = [];
+
+function openExportModal() {
+    const modal = document.getElementById('export-modal');
+    if (!modal) return;
+
+    // Générer les cases à cocher pour les 10 disciplines
+    const disciplines = Object.keys(OBSERVATION_DATA);
+    const list = document.getElementById('export-cycles-list');
+    list.innerHTML = disciplines.map((disc, idx) => `
+        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:13px;">
+            <input type="checkbox" value="${disc}" data-index="${idx}" class="export-cycle-checkbox">
+            ${disc}
+        </label>
+    `).join('');
+
+    // Réinitialiser les sélections
+    document.querySelectorAll('.export-cycle-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('export-appreciation').checked = true;
+
+    modal.style.display = 'flex';
+
+    // Gérer le clic sur "Exporter"
+    document.getElementById('export-confirm-btn').onclick = function() {
+        const selected = [];
+        document.querySelectorAll('.export-cycle-checkbox:checked').forEach(cb => {
+            selected.push(cb.value);
+        });
+        if (selected.length === 0) {
+            alert("Veuillez sélectionner au moins un cycle.");
+            return;
+        }
+        if (selected.length > 3) {
+            alert("Vous ne pouvez sélectionner que 3 cycles maximum.");
+            return;
+        }
+        _exportSelectedCycles = selected;
+        const includeAppreciation = document.getElementById('export-appreciation').checked;
+        closeExportModal();
+        // Lancer l'export avec les choix
+        performExport(_exportSelectedCycles, includeAppreciation);
+    };
+}
+
+function closeExportModal() {
+    const modal = document.getElementById('export-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+// ---- EXPORT DES NOTES VERS MASSAR ----
+async function performExport(selectedCycles, includeAppreciation) {
+    if (!currentClass) {
+        alert("Veuillez d'abord ouvrir une classe dans SmartEPS.");
+        return;
+    }
+
+    const cl = classesDB[currentClass];
+    if (!cl || cl.students.length === 0) {
+        alert("La classe active ne contient aucun élève.");
+        return;
+    }
+
+    // Calcul de l'année scolaire courante
+    const today = new Date();
+    const annee = today.getFullYear();
+    const AS = today.getMonth() < 8 ? `${annee - 1}/${annee}` : `${annee}/${annee + 1}`;
+
+    // Boucle pour demander le fichier jusqu'à ce qu'il soit valide ou que l'utilisateur annule
+    let fileHandle = null;
+    let file = null;
+    let validFile = false;
+    let workbook = null;
+    let worksheet = null;
+
+    while (!validFile) {
+        // Demander à l'utilisateur de sélectionner le fichier Massar
+        if (window.showOpenFilePicker) {
+            try {
+                [fileHandle] = await window.showOpenFilePicker({
+                    types: [{
+                        description: 'Fichier Massar (Excel)',
+                        accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx', '.xls'] }
+                    }]
+                });
+                file = await fileHandle.getFile();
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error(err);
+                    alert("Erreur lors de la sélection du fichier.");
+                }
+                return; // l'utilisateur a annulé
+            }
+        } else {
+            // Fallback input file
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx,.xls';
+            const fileSelected = await new Promise((resolve) => {
+                input.onchange = (e) => resolve(e.target.files[0]);
+                input.click();
+            });
+            if (!fileSelected) return;
+            file = fileSelected;
+            // Pour le fallback, on ne peut pas écrire directement, on utilisera le téléchargement à la fin
+            // On considère que le fichier est valide (pas de vérification car on ne peut pas réessayer facilement)
+            validFile = true;
+            // On lira le fichier plus tard
+            break;
+        }
+
+        // Lire le fichier pour vérifier la compatibilité
+        const data = await file.arrayBuffer();
+        workbook = XLSX.read(data, { type: 'array', cellStyles: true });
+        worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        const classNameFromFile = worksheet['I9']?.v?.toString().trim();
+        const asFromFile = worksheet['D13']?.v?.toString().trim();
+
+        let errors = [];
+        if (classNameFromFile !== currentClass) {
+            errors.push(`Nom de classe : fichier="${classNameFromFile}", attendu="${currentClass}"`);
+        }
+        if (asFromFile && asFromFile !== AS) {
+            errors.push(`Année scolaire : fichier="${asFromFile}", attendu="${AS}"`);
+        }
+
+        if (errors.length === 0) {
+            validFile = true;
+        } else {
+            const msg = "Le fichier sélectionné ne correspond pas à la classe active :\n" + errors.join("\n") + "\n\nVeuillez sélectionner le bon fichier ou annuler.";
+            const continuer = confirm(msg + "\n\nCliquez sur OK pour sélectionner un autre fichier, Annuler pour abandonner.");
+            if (!continuer) return;
+            // Sinon, la boucle continue
+        }
+    }
+
+    // Si on est arrivé là avec un fallback (pas de showOpenFilePicker), on a besoin de lire le fichier
+    if (!workbook) {
+        const data = await file.arrayBuffer();
+        workbook = XLSX.read(data, { type: 'array', cellStyles: true });
+        worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    }
+
+    // Convertir la feuille en tableau de tableaux (lecture seule, pour parcourir facilement les lignes)
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+    // Mapping des colonnes cibles (lettres Excel réelles, pas d'indices)
+    const colMapping = {
+        cycle1: 'G',
+        cycle2: 'I',
+        cycle3: 'K',
+        appreciation: 'M'
+    };
+
+    // Récupérer les notes finales pour chaque élève
+    const studentsMap = new Map(); // massar -> student
+    cl.students.forEach(s => {
+        if (s.massar) studentsMap.set(s.massar, s);
+    });
+
+    // ============================================================
+    //  Patch chirurgical du XML de la feuille (sans passer par
+    //  SheetJS pour l'écriture) : on ne touche QUE le texte des
+    //  cellules ciblées dans le XML brut. Tout le reste du fichier
+    //  (fusions, largeurs, hauteurs, styles, mise en forme,
+    //  validations de données, images, etc.) reste strictement
+    //  identique car on ne le lit ni ne le réécrit.
+    // ============================================================
+    function _xmlEscape(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+    }
+    function _colLetterToNum(letters) {
+        let n = 0;
+        for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
+        return n;
+    }
+    function _patchCellInSheetXml(sheetXml, cellRef, rowNum, value) {
+        const isNum = value !== "" && !isNaN(parseFloat(value)) && isFinite(value);
+        let tAttr, inner;
+        if (value === "") {
+            tAttr = '';
+            inner = '';
+        } else if (isNum) {
+            tAttr = '';
+            inner = `<v>${_xmlEscape(parseFloat(value))}</v>`;
+        } else {
+            tAttr = ' t="inlineStr"';
+            inner = `<is><t xml:space="preserve">${_xmlEscape(value)}</t></is>`;
+        }
+
+        const cellRegex = new RegExp(`<c r="${cellRef}"([^>]*?)(/>|>([\\s\\S]*?)</c>)`);
+        const match = sheetXml.match(cellRegex);
+
+        if (match) {
+            // La cellule existe déjà : on garde ses attributs (style s="..") et on remplace juste type + valeur
+            let attrs = (match[1] || '').replace(/\st="[^"]*"/, '');
+            const newCell = `<c r="${cellRef}"${attrs}${tAttr}>${inner}</c>`;
+            return sheetXml.replace(cellRegex, newCell.replace(/\$/g, '$$$$'));
+        }
+
+        // La cellule n'existe pas : on l'insère dans sa ligne, à la bonne position
+        const rowRegex = new RegExp(`(<row r="${rowNum}"[^>]*>)([\\s\\S]*?)(</row>)`);
+        const rowMatch = sheetXml.match(rowRegex);
+        if (!rowMatch) return sheetXml; // ligne introuvable : cas limite, on n'invente pas de structure
+
+        const colLetter = cellRef.match(/^[A-Z]+/)[0];
+        const newCellXml = `<c r="${cellRef}"${tAttr}>${inner}</c>`;
+        const rowContent = rowMatch[2];
+        let insertBefore = null;
+        for (const cm of rowContent.matchAll(/<c r="([A-Z]+)\d+"/g)) {
+            if (_colLetterToNum(cm[1]) > _colLetterToNum(colLetter)) { insertBefore = cm[0]; break; }
+        }
+        const newRowContent = insertBefore
+            ? rowContent.replace(insertBefore, newCellXml + insertBefore)
+            : rowContent + newCellXml;
+        return sheetXml.replace(rowRegex, (m, p1, p2, p3) => p1 + newRowContent + p3);
+    }
+
+    // Localiser le fichier XML réel de la 1ère feuille dans le classeur (xl/worksheets/sheetN.xml)
+    async function _resolveSheetPath(zip) {
+        const workbookXml = await zip.file('xl/workbook.xml').async('string');
+        const relsXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+        const ridMatch = workbookXml.match(/<sheet[^>]+r:id="(rId\d+)"/);
+        const rid = ridMatch ? ridMatch[1] : 'rId1';
+        const relMatch = relsXml.match(new RegExp(`<Relationship[^>]+Id="${rid}"[^>]+Target="([^"]+)"`));
+        const target = relMatch ? relMatch[1] : 'worksheets/sheet1.xml';
+        return 'xl/' + target.replace(/^\.?\//, '');
+    }
+
+    // Parcourir les lignes à partir de la ligne 18 (index 17) et préparer les patchs
+    let updatedCount = 0;
+    const startRow = 17; // 0-based, donc ligne 18
+    const patches = []; // { cellRef, rowNum, value }
+
+    for (let rowIdx = startRow; rowIdx < jsonData.length; rowIdx++) {
+        const row = jsonData[rowIdx];
+        if (!row || row.length === 0) continue;
+
+        const massar = (row[2] || '').toString().trim(); // colonne C
+        if (!massar) continue; // ligne sans Massar
+
+        const student = studentsMap.get(massar);
+        if (!student) continue; // élève non trouvé dans SmartEPS
+
+        const rowNum = rowIdx + 1; // ligne Excel (1-based)
+
+        // --- Cycles sélectionnés ---
+        const cyclesToWrite = selectedCycles.slice(0, 3);
+        const targetLetters = [colMapping.cycle1, colMapping.cycle2, colMapping.cycle3];
+
+        cyclesToWrite.forEach((disc, idx) => {
+            const letter = targetLetters[idx];
+            const gradeObj = student.grades?.[disc];
+            const finalNote = (gradeObj && gradeObj.f !== undefined && gradeObj.f !== "") ? gradeObj.f : "";
+            patches.push({ cellRef: `${letter}${rowNum}`, rowNum, value: finalNote });
+        });
+
+        // --- Appréciation si demandée ---
+        if (includeAppreciation) {
+            const disciplines = Object.keys(OBSERVATION_DATA);
+            let moyenneGen;
+            let appreciation = "";
+            if (student.index === "D") {
+                moyenneGen = "---";
+                appreciation = "Disp.";
+            } else if (student.index === "?") {
+                moyenneGen = "Sx?";
+                appreciation = "Sx?";
+            } else {
+                const finalGrades = disciplines
+                    .map(disc => student.grades?.[disc]?.f)
+                    .filter(f => f !== undefined && f !== "" && f !== null && !isNaN(parseFloat(f)))
+                    .map(f => parseFloat(f));
+                moyenneGen = finalGrades.length > 0
+                    ? (finalGrades.reduce((a, b) => a + b, 0) / finalGrades.length).toFixed(2)
+                    : "---";
+                if (moyenneGen !== "---") {
+                    const m = parseFloat(moyenneGen);
+                    const apps = appSettings.appreciations || {};
+                    if (m >= 18) appreciation = apps.exc || "Excellent";
+                    else if (m >= 16) appreciation = apps.tb || "Très Bien";
+                    else if (m >= 14) appreciation = apps.b || "Bon travail";
+                    else if (m >= 12) appreciation = apps.p || "Passable";
+                    else if (m >= 10) appreciation = apps.sup || "Travail superficiel";
+                    else if (m >= 8) appreciation = apps.ins || "Insuffisant";
+                    else if (m >= 5) appreciation = apps.absRec || "Absence récurrente";
+                    else appreciation = apps.abs || "Absent-e-";
+                } else {
+                    appreciation = "---";
+                }
+            }
+            patches.push({ cellRef: `${colMapping.appreciation}${rowNum}`, rowNum, value: appreciation });
+        }
+
+        updatedCount++;
+    }
+
+    // Relire le fichier en bytes bruts pour le patcher via JSZip (indépendamment de SheetJS)
+    const rawData = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(rawData);
+    const sheetPath = await _resolveSheetPath(zip);
+    let sheetXml = await zip.file(sheetPath).async('string');
+
+    patches.forEach(p => {
+        sheetXml = _patchCellInSheetXml(sheetXml, p.cellRef, p.rowNum, p.value);
+    });
+
+    zip.file(sheetPath, sheetXml); // seul ce fichier interne change, tout le reste du classeur reste identique
+    const blob = await zip.generateAsync({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        compression: 'DEFLATE'
+    });
+
+    if (window.showOpenFilePicker && fileHandle) {
+        try {
+            // Le fichier Massar téléchargé n'a souvent qu'un accès en lecture par défaut :
+            // on redemande explicitement la permission d'écriture avant d'écraser le fichier.
+            let perm = await fileHandle.queryPermission({ mode: 'readwrite' });
+            if (perm !== 'granted') {
+                perm = await fileHandle.requestPermission({ mode: 'readwrite' });
+            }
+            if (perm !== 'granted') {
+                throw new Error('Permission d\'écriture refusée par le navigateur.');
+            }
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+        } catch (err) {
+            console.error(err);
+            alert("Impossible d'écrire directement dans le fichier sélectionné (il est peut-être protégé en écriture, par ex. téléchargé depuis la plateforme Massar).\n\nUne copie corrigée va être téléchargée à la place : pensez à la déplacer/renommer pour remplacer l'originale, ou à retirer l'attribut « Lecture seule » du fichier (clic droit → Propriétés) si vous voulez que l'écriture directe fonctionne la prochaine fois.");
+            // Fallback : téléchargement
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    } else {
+        // Fallback : téléchargement
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    alert(`✅ Export terminé : ${updatedCount} élèves mis à jour.`);
+}
+
+// Point d'entrée depuis le menu
+function exportNotesToExcel() {
+    // Vérifier qu'une classe est ouverte
+    if (!currentClass) {
+        alert("Veuillez d'abord ouvrir une classe dans l'onglet 'Classe'.");
+        return;
+    }
+    openExportModal();
+}
+
 </script>
 
 <!-- Menu changement utilisateur -->
@@ -6474,6 +6867,36 @@ function _showReconnectBanner(savedHandle) {
 <div id="cycle-context-menu" style="display:none; position:fixed; background:#fff; border:1px solid #ddd; box-shadow:0 4px 15px rgba(0,0,0,0.15); z-index:1000; border-radius:5px; overflow:hidden; min-width:180px;">
     <div class="menu-item" onclick="resetCycle()">🔄 Réinitialiser le cycle</div>
     <div class="menu-item delete" onclick="deleteCycle()">🗑️ Supprimer le cycle</div>
+</div>
+
+<!-- MODALE D'EXPORT DES NOTES -->
+<div id="export-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:5000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:12px; padding:25px; max-width:500px; width:95%; max-height:80vh; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+        <h3 style="margin-top:0; color:var(--main-color1);">📤 Exporter les notes vers Massar</h3>
+        <p style="font-size:13px; color:#555; margin-bottom:15px;">
+            Sélectionnez jusqu'à <strong>3 cycles</strong> à exporter. Les notes seront écrites dans les colonnes <strong>G, I, K</strong> (dans l'ordre de sélection).<br>
+            Cochez également l'<strong>Appréciation</strong> si vous souhaitez l'exporter dans la colonne <strong>M</strong>.
+        </p>
+
+        <div style="margin-bottom:15px;">
+            <label style="font-weight:bold; display:block; margin-bottom:5px; color:var(--main-color1);">Cycles disponibles :</label>
+            <div id="export-cycles-list" style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+                <!-- Les cases à cocher seront générées dynamiquement -->
+            </div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="export-appreciation" checked>
+                <span style="font-weight:bold;">Exporter l'Appréciation (colonne M)</span>
+            </label>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button onclick="closeExportModal()" style="background:#f88282; color:white; border:none; padding:8px 20px; border-radius:6px; cursor:pointer;">Annuler</button>
+            <button id="export-confirm-btn" style="background:var(--main-color1); color:white; border:none; padding:8px 20px; border-radius:6px; cursor:pointer;">Exporter</button>
+        </div>
+    </div>
 </div>
 
 </body>
