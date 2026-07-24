@@ -140,3 +140,11 @@
 	*renommer a jours ficher de sauvegarde
 	*filtre "PPG" selon classe d'origine
 	*Bouton "retour" selon section d'origine
+
+2.008	:
+	*mise en page mineur "ListeTestsPPG"
+	*export notes vers MASSAR
+
+2.009	:
+	*correction bug mise en page export notes vers MASSAR
+	*correction bug appréciations personnalisées
