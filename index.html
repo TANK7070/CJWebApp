@@ -6553,28 +6553,61 @@ function openExportModal() {
     const modal = document.getElementById('export-modal');
     if (!modal) return;
 
+    // Vérifier qu'une classe est ouverte
+    if (!currentClass) {
+        alert("Veuillez d'abord ouvrir une classe.");
+        return;
+    }
+
+    // Collecter les statistiques pour la classe active (ou toutes les classes si on veut)
+    // On crée un petit collecteur spécifique pour la classe active
+    const activeClasses = [currentClass];
+    const stats = _statsCollect(activeClasses);
+    
+    // Récupérer la liste des cycles avec notes (ceux qui ont au moins une note >= 0)
+    const cyclesWithNotes = Object.keys(stats.discMoyMap).concat(Object.keys(stats.discExcluMap));
+    const uniqueCyclesWithNotes = [...new Set(cyclesWithNotes)];
+    
     // Générer les cases à cocher pour les 10 disciplines
     const disciplines = Object.keys(OBSERVATION_DATA);
     const list = document.getElementById('export-cycles-list');
-    list.innerHTML = disciplines.map((disc, idx) => `
-        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; padding:4px 8px; border-radius:4px;" 
-               id="export-label-${idx}" data-disc="${disc}">
-            <input type="checkbox" value="${disc}" data-index="${idx}" class="export-cycle-checkbox" 
-                   onchange="handleExportCheckboxChange(this)">
-            <span class="export-order-badge" id="export-badge-${idx}" 
-                  style="display:none; font-weight:bold; font-size:14px; min-width:22px; text-align:center; color:#000;">
-            </span>
-            ${disc}
-        </label>
-    `).join('');
+    
+    list.innerHTML = disciplines.map((disc, idx) => {
+        const hasNotes = uniqueCyclesWithNotes.includes(disc);
+        const isActive = hasNotes;
+        const disabledAttr = isActive ? '' : 'disabled';
+        const opacityStyle = isActive ? '' : 'opacity:0.5;';
+        const cursorStyle = isActive ? 'pointer' : 'not-allowed';
+        const title = isActive ? '' : 'Cycle non réalisé';
+        
+        return `
+            <label style="display:flex; align-items:center; gap:8px; cursor:${cursorStyle}; font-size:13px; padding:4px 8px; border-radius:4px; ${opacityStyle}" 
+                   id="export-label-${idx}" data-disc="${disc}" title="${title}">
+                <input type="checkbox" value="${disc}" data-index="${idx}" class="export-cycle-checkbox" 
+                       onchange="handleExportCheckboxChange(this)" ${disabledAttr}>
+                <span class="export-order-badge" id="export-badge-${idx}" 
+                      style="display:none; font-weight:bold; font-size:14px; min-width:22px; text-align:center; color:#000;">
+                </span>
+                ${disc}
+                
+            </label>
+        `;
+    }).join('');
 
     // Réinitialiser les sélections
-    document.querySelectorAll('.export-cycle-checkbox').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.export-cycle-checkbox:not([disabled])').forEach(cb => cb.checked = false);
     document.getElementById('export-appreciation').checked = true;
     
     // Réinitialiser l'ordre de sélection
     _exportSelectedCycles = [];
     _updateExportOrderBadges();
+
+    // Ajouter un indicateur du nombre de cycles disponibles
+    const activeCount = uniqueCyclesWithNotes.length;
+    const infoSpan = document.createElement('div');
+    infoSpan.style.cssText = 'font-size:12px; color:#888; margin-bottom:8px;';
+    // infoSpan.innerHTML = `📊 <strong>${activeCount}</strong> cycle${activeCount > 1 ? 's' : ''} avec notes disponible${activeCount > 1 ? 's' : ''} sur ${disciplines.length}`;
+    list.parentNode.insertBefore(infoSpan, list);
 
     modal.style.display = 'flex';
 
