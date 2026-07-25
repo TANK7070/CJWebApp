@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.009</title>
+    <title>SmartEPS v2.010</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -386,6 +386,66 @@
     body.dark-mode .ui-switch {
         --switch-bg: var(--title-color1);
         --circle-bg: var(--main-color2);
+    }
+
+    /* Menu changement utilisateur */
+    body.dark-mode #user-switch-modal {
+        background: rgba(0,0,0,0.8) !important;
+    }
+    body.dark-mode #user-switch-list > div {
+        background: #05f711 !important;
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode #user-switch-modal > div {
+        background: #1a1a2a !important;
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode #user-switch-modal h3 {
+        color: var(--main-color2) !important;
+    }
+
+    /* Modale d'export - mode sombre */
+    body.dark-mode #export-modal {
+        background: rgba(0,0,0,0.8) !important;
+    }
+    body.dark-mode #export-modal > div {
+        background: #1a1a2a !important;
+        color: #e0e0e0 !important;
+        border-color: #3a3a5a !important;
+    }
+    body.dark-mode #export-modal > div h3 {
+        color: var(--main-color2) !important;
+    }
+    body.dark-mode #export-modal > div p {
+        color: #aaa !important;
+    }
+    body.dark-mode #export-modal .export-cycle-checkbox + span,
+    body.dark-mode #export-modal label span {
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode #export-modal input[type="checkbox"] {
+        accent-color: var(--main-color2) !important;
+    }
+    body.dark-mode #export-modal button#export-confirm-btn {
+        background: var(--main-color1) !important;
+        color: #fff !important;
+    }
+    body.dark-mode #export-modal button#export-confirm-btn:hover {
+        background: var(--main-color2) !important;
+    }
+    body.dark-mode #export-modal button[onclick="closeExportModal()"] {
+        background: #c0392b !important;
+        color: #fff !important;
+    }
+    body.dark-mode #export-modal button[onclick="closeExportModal()"]:hover {
+        background: #e74c3c !important;
+    }
+    body.dark-mode #export-cycles-list label {
+        color: #e0e0e0 !important;
+    }
+    /* Badges d'ordre d'export - mode sombre */
+    body.dark-mode .export-order-badge {
+        color: #ffffff !important;
     }
     </style>
 </head>
@@ -1107,7 +1167,13 @@ const ML_KEY = "eps_ml_v7";
 const LIB_URL = 'https://gist.githubusercontent.com/TANK7070/4c7889720ab7942164a4527d864eb8ef/raw/';
 
 const OBSERVATION_DATA = {
-    "Course de Vitesse 🏃🏽‍♀️‍➡️": {
+    	"Course de Durée 🏃🏽‍♀️‍➡⏰️": {
+        title: "Observation - Course de Durée 🏃🏽‍♀️‍➡⏰️",
+        headers: ["N°", "Nom & Prénom", "Genre", "Perf. 1", "Perf. 2", "Perf. 3", "Meilleur T", "Nte Hab. Mot."],
+        fields: ["p1", "p2", "p3", "best", "NtCD1"],
+        direction: "min"
+    },
+	"Course de Vitesse 🏃🏽‍♀️‍➡️": {
         title: "Observation - Course de Vitesse 🏃🏽‍♀️‍➡️",
         groups: [
             { label: "Habilité Motrice", colspan: 4, color: "#990099" },
@@ -1128,12 +1194,6 @@ const OBSERVATION_DATA = {
         headers: ["Perf. 1", "Perf. 2", "Perf. 3", "Meilleur perf.", "Note Hab. Mot.", "Course d'élan", "Appel", "Franchissement", "Réception", "Note Comp. Mot."],
         fields: ["p1", "p2", "p3", "best", "NtSH1", "c1", "c2", "c3", "c4", "NtSH2"],
         direction: "max"
-    },
-    "Course de Durée 🏃🏽‍♀️‍➡⏰️": {
-        title: "Observation - Course de Durée 🏃🏽‍♀️‍➡⏰️",
-        headers: ["N°", "Nom & Prénom", "Genre", "Perf. 1", "Perf. 2", "Perf. 3", "Meilleur T", "Nte Hab. Mot."],
-        fields: ["p1", "p2", "p3", "best", "NtCD1"],
-        direction: "min"
     },
     "Saut en Longueur": {
         title: "Observation - Saut en Longueur",
@@ -2170,7 +2230,8 @@ function openUserSwitchModal() {
         const isActive = doti === currentDoti;
 
         const btn = document.createElement("button");
-        btn.style = `width:100%; text-align:left; padding:10px; border-radius:6px; border:1px solid #ddd; cursor:pointer; background:${isActive ? 'var(--main-color1)' : '#f0f0f0'}; color:${isActive ? 'white' : '#333'}; transition:0.2s;`;
+        btn.id = "user-switch-btn";
+        btn.style = `width:100%; text-align:left; padding:10px; border-radius:6px; border:1px solid #ddd; cursor:pointer; background:${isActive ? 'var(--main-color1)' : '#888'}; color:${isActive ? 'white' : '#333'}; transition:0.2s;`;
         btn.innerHTML = `👤 ${info.User || '(sans nom)'}<br><small style="opacity:0.8;">Doti: ${doti}${info.Etblsmnt ? ' • ' + info.Etblsmnt : ''}</small>${isActive ? ' ✅' : ''}`;
 
         // Action principale : clic gauche = changer de professeur
@@ -6496,8 +6557,13 @@ function openExportModal() {
     const disciplines = Object.keys(OBSERVATION_DATA);
     const list = document.getElementById('export-cycles-list');
     list.innerHTML = disciplines.map((disc, idx) => `
-        <label style="display:flex; align-items:center; gap:5px; cursor:pointer; font-size:13px;">
-            <input type="checkbox" value="${disc}" data-index="${idx}" class="export-cycle-checkbox">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; padding:4px 8px; border-radius:4px;" 
+               id="export-label-${idx}" data-disc="${disc}">
+            <input type="checkbox" value="${disc}" data-index="${idx}" class="export-cycle-checkbox" 
+                   onchange="handleExportCheckboxChange(this)">
+            <span class="export-order-badge" id="export-badge-${idx}" 
+                  style="display:none; font-weight:bold; font-size:14px; min-width:22px; text-align:center; color:#000;">
+            </span>
             ${disc}
         </label>
     `).join('');
@@ -6505,15 +6571,16 @@ function openExportModal() {
     // Réinitialiser les sélections
     document.querySelectorAll('.export-cycle-checkbox').forEach(cb => cb.checked = false);
     document.getElementById('export-appreciation').checked = true;
+    
+    // Réinitialiser l'ordre de sélection
+    _exportSelectedCycles = [];
+    _updateExportOrderBadges();
 
     modal.style.display = 'flex';
 
     // Gérer le clic sur "Exporter"
     document.getElementById('export-confirm-btn').onclick = function() {
-        const selected = [];
-        document.querySelectorAll('.export-cycle-checkbox:checked').forEach(cb => {
-            selected.push(cb.value);
-        });
+        const selected = _exportSelectedCycles;
         if (selected.length === 0) {
             alert("Veuillez sélectionner au moins un cycle.");
             return;
@@ -6522,12 +6589,75 @@ function openExportModal() {
             alert("Vous ne pouvez sélectionner que 3 cycles maximum.");
             return;
         }
-        _exportSelectedCycles = selected;
         const includeAppreciation = document.getElementById('export-appreciation').checked;
         closeExportModal();
-        // Lancer l'export avec les choix
-        performExport(_exportSelectedCycles, includeAppreciation);
+        performExport(selected, includeAppreciation);
     };
+}
+
+// Met à jour l'affichage des badges d'ordre de sélection
+function _updateExportOrderBadges() {
+    const allBadges = document.querySelectorAll('.export-order-badge');
+    const allLabels = document.querySelectorAll('#export-cycles-list label');
+    
+    // Réinitialiser tous les badges
+    allBadges.forEach(badge => {
+        badge.style.display = 'none';
+        badge.textContent = '';
+    });
+    
+    // Réinitialiser les styles des labels
+    allLabels.forEach(label => {
+        label.style.background = 'transparent';
+        label.style.border = 'none';
+        label.style.borderRadius = '4px';
+    });
+    
+    // Symbols pour chaque rang
+    const symbols = ['①', '②', '③'];
+    
+    // Appliquer les badges pour chaque cycle sélectionné
+    _exportSelectedCycles.forEach((disc, index) => {
+        const idx = Object.keys(OBSERVATION_DATA).indexOf(disc);
+        if (idx === -1) return;
+        
+        const badge = document.getElementById(`export-badge-${idx}`);
+        const label = document.getElementById(`export-label-${idx}`);
+        
+        if (badge) {
+            badge.style.display = 'inline-block';
+            badge.textContent = symbols[index];
+        }
+        
+        if (label) {
+            // Simple bordure grise pour indiquer la sélection
+            label.style.border = '1px solid #999';
+            label.style.borderRadius = '4px';
+        }
+    });
+}
+
+// Fonction pour gérer l'ordre de sélection
+function handleExportCheckboxChange(checkbox) {
+    const value = checkbox.value;
+    if (checkbox.checked) {
+        // Vérifier la limite de 3
+        if (_exportSelectedCycles.length >= 3) {
+            alert("Vous ne pouvez sélectionner que 3 cycles maximum.");
+            checkbox.checked = false;
+            return;
+        }
+        // Ajouter à la fin de la liste (ordre de sélection)
+        _exportSelectedCycles.push(value);
+    } else {
+        // Retirer de la liste
+        const index = _exportSelectedCycles.indexOf(value);
+        if (index !== -1) {
+            _exportSelectedCycles.splice(index, 1);
+        }
+    }
+    // Mettre à jour l'affichage des badges
+    _updateExportOrderBadges();
 }
 
 function closeExportModal() {
@@ -6856,7 +6986,7 @@ function exportNotesToExcel() {
 
 <!-- Menu changement utilisateur -->
 <div id="user-switch-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:3000; align-items:center; justify-content:center;">
-  <div style="background:#888; border-radius:10px; padding:20px; max-width:320px; width:90%; max-height:70vh; overflow-y:auto;">
+  <div style="background:white; border-radius:10px; padding:20px; max-width:320px; width:90%; max-height:70vh; overflow-y:auto;">
     <h3 style="margin-top:0; color:var(--main-color1);">🧑🏼‍🏫 Changer de professeur</h3>
     <div id="user-switch-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:15px;"></div>
     <button onclick="closeUserSwitchModal()" style="width:100%; padding:8px; border-radius:6px; border:1px solid #f88282; background:#c90606; cursor:pointer;">Annuler</button>
@@ -6872,15 +7002,15 @@ function exportNotesToExcel() {
 <!-- MODALE D'EXPORT DES NOTES -->
 <div id="export-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:5000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:12px; padding:25px; max-width:500px; width:95%; max-height:80vh; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
-        <h3 style="margin-top:0; color:var(--main-color1);">📤 Exporter les notes vers Massar</h3>
+        <h3 style="margin-top:0; color:var(--main-color1);">📤 Exporter les notes</h3>
         <p style="font-size:13px; color:#555; margin-bottom:15px;">
-            Sélectionnez jusqu'à <strong>3 cycles</strong> à exporter. Les notes seront écrites dans les colonnes <strong>G, I, K</strong> (dans l'ordre de sélection).<br>
-            Cochez également l'<strong>Appréciation</strong> si vous souhaitez l'exporter dans la colonne <strong>M</strong>.
+            Sélectionnez les cycles à exporter.<br>
+            Cochez "<strong>Appréciations</strong>" si vous souhaitez les exporter.
         </p>
 
         <div style="margin-bottom:15px;">
-            <label style="font-weight:bold; display:block; margin-bottom:5px; color:var(--main-color1);">Cycles disponibles :</label>
-            <div id="export-cycles-list" style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+            <label style="font-weight:bold; display:block; margin-bottom:5px; color:var(--main-color1);">Cycles:</label>
+            <div id="export-cycles-list" style="display:grid; grid-template-columns:1fr 1fr; gap:5px; color: black;">
                 <!-- Les cases à cocher seront générées dynamiquement -->
             </div>
         </div>
@@ -6888,12 +7018,12 @@ function exportNotesToExcel() {
         <div style="margin-bottom:20px;">
             <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                 <input type="checkbox" id="export-appreciation" checked>
-                <span style="font-weight:bold;">Exporter l'Appréciation (colonne M)</span>
+                <span style="font-weight:bold;">Exporter "Appréciations"</span>
             </label>
         </div>
 
         <div style="display:flex; gap:10px; justify-content:flex-end;">
-            <button onclick="closeExportModal()" style="background:#f88282; color:white; border:none; padding:8px 20px; border-radius:6px; cursor:pointer;">Annuler</button>
+            <button onclick="closeExportModal()" style="background:#f86f6f; color:white; border:none; padding:8px 20px; border-radius:6px; cursor:pointer;">Annuler</button>
             <button id="export-confirm-btn" style="background:var(--main-color1); color:white; border:none; padding:8px 20px; border-radius:6px; cursor:pointer;">Exporter</button>
         </div>
     </div>
