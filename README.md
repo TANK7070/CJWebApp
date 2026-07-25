@@ -151,3 +151,4 @@
 
 2.010	:
 	*ordre d'exportation des notes
+	*exportation désactivé pour les cycles non réalisés
