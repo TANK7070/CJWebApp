@@ -148,3 +148,6 @@
 2.009	:
 	*correction bug mise en page export notes vers MASSAR
 	*correction bug appréciations personnalisées
+
+2.010	:
+	*ordre d'exportation des notes
