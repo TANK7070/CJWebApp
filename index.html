@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.011</title>
+    <title>SmartEPS v2.012</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1875,7 +1875,7 @@ function openCycle(disc) {
             
             ${g.s.map((v, si) => `
                 <td oncontextmenu="toggleStatus(event, ${i}, ${si})" style="cursor:pointer; user-select:none;">
-                    <input class="input-cell" data-grid-nav="1" value="${v}" inputmode="decimal" onchange="updateScore(${i},'s',${si},this.value)">
+                    <input class="input-cell" readonly value="${v}" inputmode="decimal" onchange="updateScore(${i},'s',${si},this.value)">
                 </td>
             `).join('')}
             
@@ -2786,7 +2786,7 @@ async function _tryRenameLinkedFile() {
         const dateStr = now.toISOString().split('T')[0];
         const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
         const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
-        const newName = `SmartEPS_${userName}_Backup_${dateStr}_${timeStr}.xlsx`;
+        const newName = `SmartEPS_${userName}_${dateStr}_${timeStr}.xlsx`;
         await fileHandle.move(newName);
         await _saveHandleIDB(fileHandle); // le handle reste valide après renommage, on rafraîchit juste la persistance
     } catch (err) {
@@ -2796,7 +2796,7 @@ async function _tryRenameLinkedFile() {
 }
 
 // ============================================================
-//  ENREGISTREMENT EXCEL (silencieux en tâche de fond)
+//  ENREGISTREMENT EXCEL avec choix du dossier
 // ============================================================
 async function saveToExcel(forceNewFile = false) {
     if (Object.keys(classesDB).length === 0) {
@@ -2833,12 +2833,10 @@ async function saveToExcel(forceNewFile = false) {
         const ppgCount = ppgLabels.length;
         const vmaKey = appSettings.TstVMA === '2' ? 'demicooper' : 'navette';
 
-        // Ligne 1 : titre fusionné "PPG & Tests Physiques"
         row1.push("PPG & Tests Physiques");
         for (let i = 1; i < ppgCount; i++) row1.push("");
         merges.push({ s: { r: 0, c: currentColIdx }, e: { r: 0, c: currentColIdx + ppgCount - 1 } });
 
-        // Lignes 2 et 3 : intitulés des colonnes
         row2.push(...ppgLabels);
         row3.push(...ppgLabels);
         currentColIdx += ppgCount;
@@ -2889,9 +2887,7 @@ async function saveToExcel(forceNewFile = false) {
         row2.push(""); row2.push("");
         row3.push("Moy. Gnrl.");
         row3.push("Appréciation");
-        // Pas de fusion spécifique, ce sont deux colonnes simples
 
-        // On ajoute les en-têtes dans la matrice
         matrix.push(row1, row2, row3);
 
         // ---- 1.4 REMPLISSAGE DES LIGNES ÉLÈVES ----
@@ -2919,7 +2915,7 @@ async function saveToExcel(forceNewFile = false) {
                 ppg.souplDebout || ''
             );
 
-            // --- B) Données des cycles (inchangé) ---
+            // --- B) Données des cycles ---
             disciplines.forEach(discKey => {
                 const g = student.grades?.[discKey] || { s: {}, c: [], f: "", obs: {} };
                 const discConfig = OBSERVATION_DATA[discKey];
@@ -2946,7 +2942,7 @@ async function saveToExcel(forceNewFile = false) {
                 }
             });
 
-            // --- C) Moyenne générale et Appréciation (comme dans l'onglet Classe) ---
+            // --- C) Moyenne générale et Appréciation ---
             let moyenneGen = "---", appreciation = "---";
             if (student.index !== "D" && student.index !== "?") {
                 const finals = disciplines
@@ -2955,7 +2951,6 @@ async function saveToExcel(forceNewFile = false) {
                 if (finals.length > 0) {
                     const avg = finals.reduce((a, b) => a + b, 0) / finals.length;
                     moyenneGen = avg.toFixed(2);
-                    // Récupération des appréciations personnalisées
                     const apps = appSettings.appreciations || {};
                     const m = avg;
                     if (m >= 18) appreciation = apps.exc || "Excellent";
@@ -2979,14 +2974,13 @@ async function saveToExcel(forceNewFile = false) {
             matrix.push(rowData);
         });
 
-        // Création de la feuille Excel pour la classe
         const ws = XLSX.utils.aoa_to_sheet(matrix);
         ws['!merges'] = merges;
         XLSX.utils.book_append_sheet(wb, ws, className);
     }
 
     // ==========================================
-    // 2. SAUVEGARDE DE LA BASE DE DONNÉES INTERNE (INCHANGÉ)
+    // 2. SAUVEGARDE DE LA BASE DE DONNÉES INTERNE
     // ==========================================
     const jsonStr = JSON.stringify(classesDB);
     const wsInternal = XLSX.utils.aoa_to_sheet([
@@ -2997,7 +2991,6 @@ async function saveToExcel(forceNewFile = false) {
     ]);
     XLSX.utils.book_append_sheet(wb, wsInternal, "DB_INTERNAL");
 
-    // Masquer l'onglet DB_INTERNAL
     if (!wb.Workbook) wb.Workbook = {};
     if (!wb.Workbook.Sheets) wb.Workbook.Sheets = [];
     const internalSheetIdx = wb.SheetNames.indexOf("DB_INTERNAL");
@@ -3007,92 +3000,116 @@ async function saveToExcel(forceNewFile = false) {
     }
 
     // ==========================================
-    // 3. LOGIQUE DE SAUVEGARDE (INCHANGÉE)
+    // 3. LOGIQUE DE SAUVEGARDE AVEC CHOIX DU DOSSIER
     // ==========================================
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
+
     if (forceNewFile) {
-        // Sauvegarde en tant que nouvelle copie
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
-        const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
-        const fileName = `SmartEPS_${userName}_Copie_${dateStr}_${timeStr}.xlsx`;
+        // Sauvegarde en tant que nouvelle copie avec choix du dossier
+        if (window.showSaveFilePicker) {
+            try {
+                const options = {
+                    suggestedName: `SmartEPS_${userName}_Backup_${dateStr}_${timeStr}.xlsx`,
+                    types: [{ 
+                        description: 'Classeur Excel SmartEPS', 
+                        accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } 
+                    }]
+                };
+                const newHandle = await window.showSaveFilePicker(options);
+                const writable = await newHandle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                alert("✅ Copie de sauvegarde enregistrée avec succès !");
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                console.warn("showSaveFilePicker échoué, bascule téléchargement:", err.message);
+            }
+        }
+        // Fallback téléchargement
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fileName;
+        a.download = `SmartEPS_${userName}_Backup_${dateStr}_${timeStr}.xlsx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         alert("Copie de sauvegarde enregistrée avec succès !");
-    } else {
-        // Enregistrement standard (écriture directe ou téléchargement)
-        let savedSilently = false;
+        return;
+    }
 
-        if (fileHandle && window.showSaveFilePicker) {
-            try {
-                if (fileHandle.queryPermission) {
-                    const perm = await fileHandle.queryPermission({ mode: 'readwrite' });
-                    if (perm !== 'granted') {
-                        await fileHandle.requestPermission({ mode: 'readwrite' });
-                    }
+    // --- Enregistrement standard (avec choix du dossier) ---
+    let savedSilently = false;
+
+    // Si un fichier est déjà lié, on tente l'écriture directe (sans dialogue)
+    if (fileHandle && window.showSaveFilePicker) {
+        try {
+            if (fileHandle.queryPermission) {
+                const perm = await fileHandle.queryPermission({ mode: 'readwrite' });
+                if (perm !== 'granted') {
+                    await fileHandle.requestPermission({ mode: 'readwrite' });
                 }
-                const writable = await fileHandle.createWritable();
+            }
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            savedSilently = true;
+            await _tryRenameLinkedFile();
+        } catch(err) {
+            if (err.name === 'AbortError') return;
+            console.warn("Écriture directe impossible:", err.message);
+        }
+    }
+
+    // Si pas de fichier lié ou écriture directe échouée → choix du dossier
+    if (!savedSilently) {
+        if (window.showSaveFilePicker) {
+            try {
+                const options = {
+                    suggestedName: `SmartEPS_${userName}_${dateStr}_${timeStr}.xlsx`,
+                    types: [{ 
+                        description: 'Classeur Excel SmartEPS', 
+                        accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } 
+                    }]
+                };
+                const newHandle = await window.showSaveFilePicker(options);
+                // Si c'est un nouveau fichier, on le garde comme lien
+                if (!fileHandle) {
+                    fileHandle = newHandle;
+                    await _saveHandleIDB(fileHandle);
+                }
+                const writable = await newHandle.createWritable();
                 await writable.write(blob);
                 await writable.close();
                 savedSilently = true;
-                await _tryRenameLinkedFile(); // tentative de renommage avec date/heure actuelles (non bloquant)
-            } catch(err) {
+            } catch (err) {
                 if (err.name === 'AbortError') return;
-                console.warn("Écriture directe impossible, bascule en téléchargement:", err.message);
+                console.warn("showSaveFilePicker échoué, bascule téléchargement:", err.message);
             }
         }
 
+        // Dernier recours : téléchargement simple
         if (!savedSilently) {
-            if (window.showSaveFilePicker && !fileHandle) {
-                try {
-                    const now = new Date();
-                    const dateStr = now.toISOString().split('T')[0];
-                    const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
-                    const options = {
-                        suggestedName: `SmartEPS_${userName}_Backup_${dateStr}_${timeStr}.xlsx`,
-                        types: [{ description: 'Classeur Excel SmartEPS', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }]
-                    };
-                    const newHandle = await window.showSaveFilePicker(options);
-                    fileHandle = newHandle;
-                    await _saveHandleIDB(fileHandle);
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(blob);
-                    await writable.close();
-                    savedSilently = true;
-                } catch(err) {
-                    if (err.name === 'AbortError') return;
-                    console.warn("showSaveFilePicker échoué, bascule téléchargement:", err.message);
-                }
-            }
-
-            if (!savedSilently) {
-                const now = new Date();
-                const dateStr = now.toISOString().split('T')[0];
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                const userName = (appSettings.User || 'Inconnu').trim().replace(/\s+/g, '_');
-                const timeStr = now.toTimeString().split(' ')[0];
-                a.download = `SmartEPS_${userName}_Backup_${dateStr}_${timeStr}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `SmartEPS_${userName}_${dateStr}_${timeStr}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
-
-        _isDirty = false;
-        setTimeout(() => _updateAllButtons(), 300);
     }
+
+    _isDirty = false;
+    setTimeout(() => _updateAllButtons(), 300);
 }
 
 
