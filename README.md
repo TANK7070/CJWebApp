@@ -152,3 +152,6 @@
 2.010	:
 	*ordre d'exportation des notes
 	*exportation désactivé pour les cycles non réalisés
+
+2.011	:
+	*Navigabilité par clavier dans toutes les grilles (fonction unifiée)
