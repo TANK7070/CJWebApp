@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.010</title>
+    <title>SmartEPS v2.011</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1875,23 +1875,26 @@ function openCycle(disc) {
             
             ${g.s.map((v, si) => `
                 <td oncontextmenu="toggleStatus(event, ${i}, ${si})" style="cursor:pointer; user-select:none;">
-                    <input class="input-cell" value="${v}" inputmode="decimal" onchange="updateScore(${i},'s',${si},this.value)">
+                    <input class="input-cell" data-grid-nav="1" value="${v}" inputmode="decimal" onchange="updateScore(${i},'s',${si},this.value)">
                 </td>
             `).join('')}
             
-            <td><input class="input-cell" value="${g.c[0]}" readonly style="background:rgba(0,0,0,0.05); font-weight:bold;"></td>
-            <td><input class="input-cell" value="${g.c[1] || ""}" inputmode="decimal" onchange="validateAndUpdateCon(${i}, this)"></td>
-            <td><input class="input-cell" value="${g.c[2] || ""}" inputmode="decimal" onchange="updateScore(${i},'c',2,this.value)"></td>
+            <td><input class="input-cell" data-grid-nav="1" value="${g.c[0]}" readonly style="background:rgba(0,0,0,0.05); font-weight:bold;"></td>
+            <td><input class="input-cell" data-grid-nav="1" value="${g.c[1] || ""}" inputmode="decimal" onchange="validateAndUpdateCon(${i}, this)"></td>
+            <td><input class="input-cell" data-grid-nav="1" value="${g.c[2] || ""}" inputmode="decimal" onchange="updateScore(${i},'c',2,this.value)"></td>
             
-            <td><input class="input-cell" value="${hMotVal}" readonly style="font-weight:bold;" title="Note calculée depuis l'observation"></td>
+            <td><input class="input-cell" data-grid-nav="1" value="${hMotVal}" readonly style="font-weight:bold;" title="Note calculée depuis l'observation"></td>
             
             <td style="background:rgba(16, 172, 132, 0.1)">
-                <input class="input-cell" style="color:#10ac84; font-weight:900; font-size:1.1em;" value="${noteFinale}" readonly>
+                <input class="input-cell" data-grid-nav="1" style="color:#10ac84; font-weight:900; font-size:1.1em;" value="${noteFinale}" readonly>
             </td>
         </tr>`;
     }).join("");
     
     showTab("cycle");
+
+    // Navigation clavier dans la grille Cycle (flèches / Entrée / Tab)
+    _attachGridKeyNav(document.getElementById("cycle-table"));
 }
 // Validation note conceptuel ente 0 et 3 en remettant à 3 si superieur à 3
 function validateAndUpdateCon(studentIdx, inputElement) {
@@ -5546,7 +5549,7 @@ function renderPPGListTests() {
         const stepAttr = step ? `step="${step}"` : '';
         const disabledAttr = disabled ? 'disabled class="ppg-input-disabled"' : '';
         return `<td><input type="${type}" value="${val}" ${stepAttr} ${disabledAttr}
-            data-ppg-input="1"
+            data-grid-nav="1"
             style="width:100%; min-width:40px; border:none; border-bottom:1px solid #ddd;
                    background:transparent; text-align:center; font-size:11px; padding:2px;"
             onchange="savePPG('${cn}',${i},'${key}',this.value)"></td>`;
@@ -5593,24 +5596,34 @@ function renderPPGListTests() {
     `;
 
     // Navigation clavier dans la grille PPG
-    _ppgAttachKeyNav(container);
+    _attachGridKeyNav(container);
 }
 
-// Navigation clavier centralisée pour la grille PPG
-function _ppgAttachKeyNav(container) {
+// ============================================================
+//  NAVIGATION CLAVIER GÉNÉRIQUE — commune à toutes les grilles
+//  (PPG, Cycle, Observation) pour éviter une fonction dédiée
+//  par section. Les flèches déplacent le focus ligne/colonne,
+//  Entrée descend d'une ligne, Tab suit l'ordre des cellules.
+//
+//  container : élément englobant le <table> de la grille
+//  selector  : sélecteur des inputs navigables (par défaut : tout
+//              input marqué data-grid-nav="1" et non désactivé)
+// ============================================================
+function _attachGridKeyNav(container, selector = 'input[data-grid-nav="1"]:not([disabled]):not([readonly])') {
+    if (!container || container.dataset.gridNavAttached) return; // évite les écouteurs en double lors des re-rendus
+    container.dataset.gridNavAttached = '1';
+
     container.addEventListener('keydown', function(e) {
         const input = e.target;
-        if (!input.dataset.ppgInput) return; // ignorer les inputs non-PPG
+        if (!input.matches || !input.matches(selector)) return;
 
         const key = e.key;
-        if (!['Enter','ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(key)) return;
+        if (!['Enter', 'Tab', 'ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(key)) return;
 
-        // Récupérer tous les inputs navigables (non disabled)
-        const allInputs = Array.from(container.querySelectorAll('input[data-ppg-input="1"]:not([disabled])'));
+        const allInputs = Array.from(container.querySelectorAll(selector));
         const currentIdx = allInputs.indexOf(input);
         if (currentIdx === -1) return;
 
-        // Déterminer la position (ligne, colonne) dans le tableau
         const td    = input.closest('td');
         const tr    = input.closest('tr');
         const tbody = tr?.closest('tbody');
@@ -5624,44 +5637,44 @@ function _ppgAttachKeyNav(container) {
 
         if (key === 'Enter' || key === 'ArrowDown') {
             e.preventDefault();
-            // Chercher l'input de la même colonne à la ligne suivante
             for (let r = rowIdx + 1; r < numRows; r++) {
                 const nextTd = tbody.rows[r]?.cells[colIdx];
-                const nextInput = nextTd?.querySelector('input[data-ppg-input="1"]:not([disabled])');
+                const nextInput = nextTd?.querySelector(selector);
                 if (nextInput) { target = nextInput; break; }
             }
-            // En fin de liste : passer à la colonne suivante, première ligne
             if (!target) {
-                const next = allInputs.find((inp, i) => i > currentIdx);
-                if (next) target = next;
+                target = allInputs.find((inp, i) => i > currentIdx) || null;
             }
         }
         else if (key === 'ArrowUp') {
             e.preventDefault();
             for (let r = rowIdx - 1; r >= 0; r--) {
                 const prevTd = tbody.rows[r]?.cells[colIdx];
-                const prevInput = prevTd?.querySelector('input[data-ppg-input="1"]:not([disabled])');
+                const prevInput = prevTd?.querySelector(selector);
                 if (prevInput) { target = prevInput; break; }
             }
         }
         else if (key === 'ArrowRight') {
             e.preventDefault();
-            // Prochain input sur la même ligne
-            const rowInputs = Array.from(tr.querySelectorAll('input[data-ppg-input="1"]:not([disabled])'));
+            const rowInputs = Array.from(tr.querySelectorAll(selector));
             const rowPos = rowInputs.indexOf(input);
             if (rowPos < rowInputs.length - 1) target = rowInputs[rowPos + 1];
         }
         else if (key === 'ArrowLeft') {
             e.preventDefault();
-            const rowInputs = Array.from(tr.querySelectorAll('input[data-ppg-input="1"]:not([disabled])'));
+            const rowInputs = Array.from(tr.querySelectorAll(selector));
             const rowPos = rowInputs.indexOf(input);
             if (rowPos > 0) target = rowInputs[rowPos - 1];
+        }
+        else if (key === 'Tab') {
+            e.preventDefault();
+            const nextIdx = e.shiftKey ? currentIdx - 1 : currentIdx + 1;
+            target = allInputs[nextIdx] || null;
         }
 
         if (target) {
             target.focus();
             target.select();
-            // Scroll vers la cellule cible si hors de vue
             target.closest('td')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         }
     });
@@ -5974,79 +5987,6 @@ document.addEventListener("click", () => {
     document.getElementById("dropdown-classes").style.display = "none";
 });
 
-function handleObsNav(e, studentIdx, field, inputEl) {
-    const config = OBSERVATION_DATA[currentDisc];
-    const editableFields = config.fields;
-    const currentSubIdx = editableFields.indexOf(field);
-    const totalStudents = classesDB[currentClass].students.length;
-
-    const isEnter = e.key === "Enter";
-    const isDown = e.key === "ArrowDown";
-    const isUp = e.key === "ArrowUp";
-    const isRight = e.key === "ArrowRight";
-    const isLeft = e.key === "ArrowLeft";
-    const isTab = e.key === "Tab";
-
-    if (isEnter) {
-        updateObsVal(studentIdx, field, inputEl.value);
-    }
-
-    let nextSi = studentIdx;
-    let nextSubIdx = currentSubIdx;
-    let navigationActionnee = false;
-
-    if (isEnter || isDown) {
-        if (studentIdx < totalStudents - 1) {
-            nextSi = studentIdx + 1;
-            navigationActionnee = true;
-        }
-    } else if (isUp) {
-        if (studentIdx > 0) {
-            nextSi = studentIdx - 1;
-            navigationActionnee = true;
-        }
-    } else if (isRight) {
-        if (currentSubIdx < editableFields.length - 1) {
-            nextSubIdx = currentSubIdx + 1;
-            navigationActionnee = true;
-        }
-    } else if (isLeft) {
-        if (currentSubIdx > 0) {
-            nextSubIdx = currentSubIdx - 1;
-            navigationActionnee = true;
-        }
-    } else if (isTab) {
-        e.preventDefault();
-        if (e.shiftKey) {
-            if (currentSubIdx > 0) {
-                nextSubIdx = currentSubIdx - 1;
-            } else if (studentIdx > 0) {
-                nextSi = studentIdx - 1;
-                nextSubIdx = editableFields.length - 1;
-            }
-        } else {
-            if (currentSubIdx < editableFields.length - 1) {
-                nextSubIdx = currentSubIdx + 1;
-            } else if (studentIdx < totalStudents - 1) {
-                nextSi = studentIdx + 1;
-                nextSubIdx = 0;
-            }
-        }
-        navigationActionnee = true;
-    }
-
-    if (navigationActionnee) {
-        e.preventDefault();
-        const nextField = editableFields[nextSubIdx];
-        setTimeout(() => {
-            const nextTarget = document.querySelector(`[data-si="${nextSi}"][data-field="${nextField}"]`);
-            if (nextTarget) {
-                nextTarget.focus();
-                nextTarget.select();
-            }
-        }, 10);
-    }
-}
 
 function renderObservationGrid() {
     const content = document.getElementById("obs-content");
@@ -6112,14 +6052,14 @@ function renderObservationGrid() {
             <input 
                 class="input-cell obs-input" 
                 type="text"
+                data-grid-nav="1"
                 data-si="${i}"
                 data-field="${field}"
                 ${isNumeric ? 'inputmode="decimal"' : ''} 
                 value="${val}" 
                 ${isReadOnly} 
                 onfocus="this.select()"
-                onblur="updateObsVal(${i}, '${field}', this.value)" 
-                onkeydown="if(event.key === 'Enter') { event.preventDefault(); this.blur(); handleObsNav(event, ${i}, '${field}', this); } else { handleObsNav(event, ${i}, '${field}', this); }">
+                onblur="updateObsVal(${i}, '${field}', this.value)">
             </td>`;
         });
         html += `</tr>`;
@@ -6127,6 +6067,9 @@ function renderObservationGrid() {
 
     html += `</tbody></table>`;
     content.innerHTML = html;
+
+    // Navigation clavier dans la grille Observation (flèches / Entrée / Tab)
+    _attachGridKeyNav(content);
 }
 
 function getNiveauFromName(className) {
