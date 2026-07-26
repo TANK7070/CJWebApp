@@ -155,3 +155,6 @@
 
 2.011	:
 	*Navigabilité par clavier dans toutes les grilles (fonction unifiée)
+
+2.012	:
+	*choix du dossier d'enregistrement et de sauvegarde
