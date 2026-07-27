@@ -158,3 +158,6 @@
 
 2.012	:
 	*choix du dossier d'enregistrement et de sauvegarde
+
+2.013	:
+	*nature de séance par click droit sur "S"
