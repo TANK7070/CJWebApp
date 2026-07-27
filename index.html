@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.012</title>
+    <title>SmartEPS v2.013</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -95,6 +95,10 @@
         .menu-item:hover {background: var(--update-color1); color:#f0edff}
         .menu-item.delete {color: var(--delete-color1); border-top: 1px solid #eee}
         .menu-item.delete:hover {background: var(--delete-color1); color: white}
+
+        #context-menu-seance {display:none;position:fixed;background:#fff;border:1px solid #ddd;box-shadow:0 4px 15px rgba(0,0,0,0.15);z-index:1000;border-radius:5px;overflow:hidden;min-width:180px}
+        .menu-item-seance {padding:5px 5px;cursor:pointer;font-size:14px; transition: 0.2s}
+        .menu-item-seance:hover {background: var(--main-color1); color:#f0edff}
 
         fieldset{padding:15px;border:1px solid #ddd;border-radius:8px;background:#fff;margin-bottom:15px}
         legend{padding:0 10px;font-weight:bold;color:#6c5ce7}
@@ -573,6 +577,19 @@ input:checked + .slider:before {
   box-shadow: inset -3px -2px 1px -2px #8983f7, inset -5px -3px 0 0 #a3dafb;
 }
 
+/* Menu contextuel des séances - mode sombre */
+body.dark-mode #seance-context-menu {
+    background: #1e1e2e !important;
+    border-color: #3a3a5a !important;
+    color: #e0e0e0 !important;
+}
+body.dark-mode #seance-context-menu .menu-item-seance {
+    color: #e0e0e0 !important;
+}
+body.dark-mode #seance-context-menu .menu-item-seance:hover {
+    background: var(--main-color2) !important;
+    color: #fff !important;
+}
 
     </style>
 	
@@ -1140,6 +1157,7 @@ async function _clearHandleIDB() {
 document.addEventListener('click', function(e) {
     const menuAction = document.getElementById('dropdown-menu');
     const menuClasses = document.getElementById('dropdown-classes');
+    const seanceMenu = document.getElementById('seance-context-menu');
 
     // Si le menu Action est ouvert et que le clic n'a pas eu lieu à l'intérieur
     if (menuAction && menuAction.style.display === 'block') {
@@ -1149,6 +1167,11 @@ document.addEventListener('click', function(e) {
     // Sécurité : fait de même pour le menu des classes s'il est ouvert
     if (menuClasses && menuClasses.style.display === 'block') {
         menuClasses.style.display = 'none';
+    }
+    
+    // Masquer le menu contextuel des séances
+    if (seanceMenu && seanceMenu.style.display === 'block') {
+        seanceMenu.style.display = 'none';
     }
 });
 
@@ -1834,7 +1857,7 @@ function openCycle(disc) {
     if(!cl.cycleDates[disc]) cl.cycleDates[disc] = Array(nbrSeances).fill("");
     cl.cycleDates[disc] = _resizeArray(cl.cycleDates[disc], nbrSeances);
     const dates = cl.cycleDates[disc];
-
+    
     const thead = document.querySelector("#cycle-table thead");
     thead.innerHTML = `
         <tr>
@@ -1846,7 +1869,18 @@ function openCycle(disc) {
             <th rowspan="3" style="background:#10ac84">Note Finale</th>
         </tr>
         <tr>
-            ${Array.from({length:nbrSeances}, (_,i)=>`<th class="th-date" onclick="showTab('obs'); renderObservationGrid();" style="cursor:pointer" title="Voir les observations">S${i+1}</th>`).join('')}
+            ${Array.from({length:nbrSeances}, (_,i) => `
+                <th class="th-date" 
+                    oncontextmenu="showSeanceContextMenu(event, ${i})" 
+                    onclick="showTab('obs'); renderObservationGrid();" 
+                    style="cursor:pointer; position:relative;" 
+                    title="Clic gauche = Voir observations | Clic droit = Statut séance">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:3px;">
+                        <span>S${i+1}</span>
+                        <span id="seance-status-badge-${i}" style="font-size:10px; background:rgba(255,255,255,0.2); border-radius:4px; padding:0 4px; display:inline-block; min-width:18px; text-align:center; color:inherit;">●</span>
+                    </div>
+                </th>
+            `).join('')}
             <th rowspan="2" style="background:#222f3e">Comp.</th>
             <th rowspan="2" style="background:#222f3e">Con.</th>
             <th rowspan="2" style="background:#222f3e">C. Mot.</th>
@@ -1893,9 +1927,13 @@ function openCycle(disc) {
     
     showTab("cycle");
 
+    // Restaurer les badges de statut
+    restoreSeanceBadges(disc);
+    
     // Navigation clavier dans la grille Cycle (flèches / Entrée / Tab)
     _attachGridKeyNav(document.getElementById("cycle-table"));
 }
+
 // Validation note conceptuel ente 0 et 3 en remettant à 3 si superieur à 3
 function validateAndUpdateCon(studentIdx, inputElement) {
     let rawValue = inputElement.value.trim().replace(',', '.'); // accepte virgule
@@ -2842,6 +2880,8 @@ async function saveToExcel(forceNewFile = false) {
         currentColIdx += ppgCount;
 
         // ---- 1.2 AJOUT DES CYCLES (DISCIPLINES) ----
+        const seanceStatus = classesDB[className].seanceStatus || {};
+
         disciplines.forEach(discKey => {
             const discConfig = OBSERVATION_DATA[discKey];
             const isSportCo = discKey.toUpperCase().includes("BASKET") ||
@@ -2856,7 +2896,21 @@ async function saveToExcel(forceNewFile = false) {
             for (let m = 1; m < totalDiscCols; m++) row1.push("");
             merges.push({ s: { r: 0, c: currentColIdx }, e: { r: 0, c: currentColIdx + totalDiscCols - 1 } });
 
-            for (let s = 1; s <= nbrS; s++) row2.push(`S${s}`);
+            // Ligne 2 : Séances avec leurs statuts (S1, S2... avec icône)
+            const statuses = seanceStatus[discKey] || {};
+            const symbols = {
+                'normal': '',
+                'MT': ' MT',
+                'Réunion': ' Réunion',
+                'Mission': ' Mission'
+            };
+            
+            for (let s = 1; s <= nbrS; s++) {
+                const statut = statuses[s - 1] || 'normal';
+                const symbol = symbols[statut] || '';
+                row2.push(`S${s}${symbol}`);
+            }
+            
             row2.push("Evaluation Cycle"); for(let m=1; m<4; m++) row2.push("");
             merges.push({ s: { r: 1, c: currentColIdx + nbrS }, e: { r: 1, c: currentColIdx + nbrS + 3 } });
             row2.push("");
@@ -2866,12 +2920,14 @@ async function saveToExcel(forceNewFile = false) {
                 merges.push({ s: { r: 1, c: currentColIdx + nbrS + 5 }, e: { r: 1, c: currentColIdx + nbrS + 5 + perfFieldsCount + 1 } });
             }
 
+            // Ligne 3 : Dates
             const targetDates = (classesDB[className].cycleDates && classesDB[className].cycleDates[discKey]) ? classesDB[className].cycleDates[discKey] : null;
             for (let s = 1; s <= nbrS; s++) {
                 const dateVal = targetDates ? (targetDates[s - 1] || "") : "";
                 row3.push(dateVal);
             }
-
+            
+            // Ligne 3 (suite) : En-têtes d'évaluation
             row3.push("Comp.", "Con.", "C. Mot.", "H. Mot.", "Note finale");
 
             if (!isSportCo) {
@@ -2888,6 +2944,7 @@ async function saveToExcel(forceNewFile = false) {
         row3.push("Moy. Gnrl.");
         row3.push("Appréciation");
 
+        // On ajoute les en-têtes dans la matrice
         matrix.push(row1, row2, row3);
 
         // ---- 1.4 REMPLISSAGE DES LIGNES ÉLÈVES ----
@@ -3564,15 +3621,31 @@ function _statsChartPlage(d) {
 }
 
 function _statsAvancement(activeClasses) {
-// Barres d'avancement des cycles
+    // Barres d'avancement des cycles
     const nbrTotal = getNbrSeances();
     const couleur = pct => pct >= 100 ? '#2ecc71' : pct >= 60 ? '#3498db' : pct >= 30 ? '#f39c12' : '#e74c3c';
     const avancements = [];
 
     activeClasses.forEach(cn => {
-        const cycleDates = classesDB[cn].cycleDates || {};
+        const cl = classesDB[cn];
+        const cycleDates = cl.cycleDates || {};
+        const seanceStatus = cl.seanceStatus || {};
+        
         Object.keys(cycleDates).forEach(disc => {
-            const effectuees = (cycleDates[disc] || []).filter(d => d && d.trim() !== '').length;
+            const dates = cycleDates[disc] || [];
+            const statuses = (seanceStatus[disc] || {});
+            
+            // Compter uniquement les séances avec une date ET un statut "normal" (ou sans statut)
+            let effectuees = 0;
+            dates.forEach((d, idx) => {
+                if (d && d.trim() !== '') {
+                    const statut = statuses[idx] || 'normal'; // par défaut : normal
+                    if (statut === 'normal' || statut === undefined) {
+                        effectuees++;
+                    }
+                }
+            });
+            
             if (effectuees === 0) return;
             const pct = Math.round((effectuees / nbrTotal) * 100);
             avancements.push({ classe: cn, disc, effectuees, total: nbrTotal, pct });
@@ -3589,12 +3662,57 @@ function _statsAvancement(activeClasses) {
 
     document.getElementById('stats-avancement').innerHTML = avancements.map(av => {
         const coul = couleur(av.pct);
+        
+        // Récupérer les statuts pour afficher les détails
+        const cl = classesDB[av.classe];
+        const statuses = (cl.seanceStatus && cl.seanceStatus[av.disc]) || {};
+        const dates = (cl.cycleDates && cl.cycleDates[av.disc]) || [];
+        
+        // Construire les segments avec couleurs selon le statut
         const segments = Array.from({ length: av.total }, (_, i) => {
-            const isDone = i < av.effectuees;
-            return `<div style="flex:1; height:100%; background:${isDone ? coul : '#e0e0e0'}; border-radius:2px; transition:background 0.3s;"></div>`;
+            const dateVal = dates[i] || '';
+            const hasDate = dateVal && dateVal.trim() !== '';
+            const statut = statuses[i] || 'normal';
+            
+            let bgColor = '#e0e0e0'; // gris par défaut (pas de date)
+            if (hasDate) {
+                if (statut === 'normal' || statut === undefined) {
+                    bgColor = coul; // couleur de progression normale
+                } else if (statut === 'MT') {
+                    bgColor = 'linear-gradient(45deg, #126cf3 0%, #f39c1200 70%)';
+                } else if (statut === 'Réunion') {
+                    bgColor = 'linear-gradient(45deg, #9d9807 0%, #f39c1200 70%)'; 
+                } else if (statut === 'Mission') {
+                    bgColor = 'linear-gradient(45deg, #d10000 0%, #f39c1200 70%)'; 
+                }
+            }
+            
+            return `<div style="flex:1; height:100%; background:${bgColor}; border-radius:2px; transition:background 0.3s; position:relative;" 
+                        title="${hasDate ? (statut === 'normal' || statut === undefined ? 'Séance effectuée' : statut) : 'Non planifiée'}"></div>`;
         }).join('');
 
-        // Construction du HTML avec lien cliquable
+        // Construction du HTML avec liens cliquables et informations de statut
+        let statusSummary = '';
+        const statusCounts = { normal: 0, MT: 0, Réunion: 0, Mission: 0 };
+        dates.forEach((d, i) => {
+            if (d && d.trim() !== '') {
+                const statut = statuses[i] || 'normal';
+                if (statut === 'normal' || statut === undefined) statusCounts.normal++;
+                else if (statut === 'MT') statusCounts.MT++;
+                else if (statut === 'Réunion') statusCounts.Réunion++;
+                else if (statut === 'Mission') statusCounts.Mission++;
+            }
+        });
+        
+        const summaryParts = [];
+        if (statusCounts.normal > 0) summaryParts.push(`✅ ${statusCounts.normal}`);
+        if (statusCounts.MT > 0) summaryParts.push(`🌧️ ${statusCounts.MT}`);
+        if (statusCounts.Réunion > 0) summaryParts.push(`📋 ${statusCounts.Réunion}`);
+        if (statusCounts.Mission > 0) summaryParts.push(`🚗 ${statusCounts.Mission}`);
+        if (summaryParts.length > 0) {
+            statusSummary = ` | ${summaryParts.join(' ')}`;
+        }
+
         return `
             <div style="margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
@@ -3602,6 +3720,7 @@ function _statsAvancement(activeClasses) {
                         <span class="clickable-stats" onclick="openClass('${av.classe}')" title="Ouvrir la classe">${av.classe}</span>
                         —
                         <span class="clickable-stats" onclick="openClass('${av.classe}'); setTimeout(() => openCycle('${av.disc}'), 100);" title="Ouvrir le cycle">${av.disc}</span>
+                        <span style="font-size:10px; color:#888; margin-left:5px;">${statusSummary}</span>
                     </span>
                     <span style="color:${coul}; font-weight:bold;">
                         ${av.effectuees} / ${av.total} séances (${av.pct}%)
@@ -4035,6 +4154,88 @@ function renderStats() {
     fns.forEach((fn, i) => { try { fn(); } catch(e) { console.error('Stats fn #'+i+' error:', e); } });
 }
 
+// ============================================================
+// GESTION DES STATUTS DE SÉANCES
+// ============================================================
+
+// Variable globale pour stocker la séance ciblée par le menu contextuel
+let _seanceContextIdx = null;
+
+// Affiche le menu contextuel pour une séance
+function showSeanceContextMenu(e, seanceIdx) {
+    e.preventDefault();
+    _seanceContextIdx = seanceIdx;
+    const menu = document.getElementById('seance-context-menu');
+    menu.style.display = 'block';
+    menu.style.left = e.pageX + 'px';
+    menu.style.top = e.pageY + 'px';
+}
+
+// Définit le statut d'une séance
+function setSeanceStatus(status) {
+    if (_seanceContextIdx === null) return;
+    
+    const cl = classesDB[currentClass];
+    if (!cl.seanceStatus) cl.seanceStatus = {};
+    if (!cl.seanceStatus[currentDisc]) cl.seanceStatus[currentDisc] = {};
+    
+    // Si le statut est 'normal', on peut supprimer l'entrée pour économiser de l'espace
+    // (car 'normal' est la valeur par défaut)
+    if (status === 'normal') {
+        delete cl.seanceStatus[currentDisc][_seanceContextIdx];
+        // Si plus aucun statut pour ce cycle, nettoyer
+        if (Object.keys(cl.seanceStatus[currentDisc]).length === 0) {
+            delete cl.seanceStatus[currentDisc];
+        }
+        if (Object.keys(cl.seanceStatus).length === 0) {
+            delete cl.seanceStatus;
+        }
+    } else {
+        cl.seanceStatus[currentDisc][_seanceContextIdx] = status;
+    }
+    
+    // Mettre à jour l'affichage du badge
+    const badge = document.getElementById(`seance-status-badge-${_seanceContextIdx}`);
+    if (badge) {
+        const symbols = {
+            'normal': '●',
+            'MT': '🌧️',
+            'Réunion': '📋',
+            'Mission': '🚗'
+        };
+        badge.textContent = symbols[status] || '●';
+    }
+    
+    save();
+    document.getElementById('seance-context-menu').style.display = 'none';
+    _seanceContextIdx = null;
+    
+    // Rafraîchir les stats si l'onglet est ouvert
+    if (document.getElementById('sec-stats')?.classList.contains('active')) {
+        renderStats();
+    }
+}
+
+// Fonction pour restaurer les badges lors de l'ouverture d'un cycle
+function restoreSeanceBadges(disc) {
+    const cl = classesDB[currentClass];
+    const statuses = (cl.seanceStatus && cl.seanceStatus[disc]) || {};
+    const nbrSeances = getNbrSeances();
+    
+    for (let i = 0; i < nbrSeances; i++) {
+        const badge = document.getElementById(`seance-status-badge-${i}`);
+        if (badge) {
+            const statut = statuses[i] || 'normal';
+            const symbols = {
+                'normal': '●',
+                'MT': '🌧️',
+                'Réunion': '📋',
+                'Mission': '🚗'
+            };
+            badge.textContent = symbols[statut] || '●';
+        }
+    }
+}
 
 // ============================================================
 // IMPRESSION — fonctions séparées
@@ -6987,14 +7188,14 @@ function exportNotesToExcel() {
 </div>
 
 <!-- Menu contextuel pour supprimer ou réinitialiser les cycles -->
-<div id="cycle-context-menu" style="display:none; position:fixed; background:#fff; border:1px solid #ddd; box-shadow:0 4px 15px rgba(0,0,0,0.15); z-index:1000; border-radius:5px; overflow:hidden; min-width:180px;">
+<div id="cycle-context-menu" style="display:none; position:fixed; background:#fff; border:1px solid #ddd; box-shadow:0 4px 15px rgba(0,0,0,0.15); z-index:1000; border-radius:5px; overflow:hidden; min-width:160px;">
     <div class="menu-item" onclick="resetCycle()">🔄 Réinitialiser le cycle</div>
     <div class="menu-item delete" onclick="deleteCycle()">🗑️ Supprimer le cycle</div>
 </div>
 
 <!-- MODALE D'EXPORT DES NOTES -->
 <div id="export-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:5000; align-items:center; justify-content:center;">
-    <div style="background:#fff; border-radius:12px; padding:25px; max-width:500px; width:95%; max-height:80vh; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+    <div style="background:#fff; border-radius:12px; padding:25px; max-width:470px; width:95%; max-height:80vh; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
         <h3 style="margin-top:0; color:var(--main-color1);">📤 Exporter les notes</h3>
         <p style="font-size:13px; color:#555; margin-bottom:15px;">
             Sélectionnez les cycles à exporter.<br>
@@ -7021,6 +7222,12 @@ function exportNotesToExcel() {
         </div>
     </div>
 </div>
-
+<!-- Menu contextuel pour les séances (S1, S2, S3...) -->
+<div id="seance-context-menu" style="display:none; position:fixed; background:#dfdfdf; border:1px solid #ddd; box-shadow:0 4px 15px rgba(0,0,0,0.15); z-index:1000; border-radius:5px; overflow:hidden; min-width:130px;">
+    <div class="menu-item-seance" onclick="setSeanceStatus('normal')">✅ Normale</div>
+    <div class="menu-item-seance" onclick="setSeanceStatus('MT')">🌧️ Mauvais temps</div>
+    <div class="menu-item-seance" onclick="setSeanceStatus('Réunion')">📋 Réunion</div>
+    <div class="menu-item-seance" onclick="setSeanceStatus('Mission')">🚗 Mission</div>
+</div>
 </body>
 </html
