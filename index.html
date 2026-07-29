@@ -758,7 +758,7 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
         </div>
         
         <div id="first-use-banner" style="display:none; background:#e67a7a; border:1px solid #f06d6d; color:#4d0707; padding:12px 15px; border-radius:8px; margin-bottom:15px; font-weight:bold;">
-            👋 Bienvenue ! Avant de commencer, veuillez renseigner au votre <u>nom (Professeur / User)</u> et votre identifiant <u>Doti</u> ci-dessous pour créer votre profil.
+            👋 Bienvenue ! Avant de commencer, veuillez renseigner votre <strong>nom (Professeur / User)</strong> et votre identifiant <strong>Doti</strong> ci-dessous pour créer votre profil.<p style="font-size: 0.85em;">*Les autres infos sont complémentaires.</p>
         </div>
         <div id="settings-content" style="padding: 5px; max-height: 75vh; overflow-y: auto;">
             
@@ -780,17 +780,17 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
                     <div style="display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; margin-top: 10px;">
 
                         <label for="User">Professeur / User :</label>
-                        <input type="text" id="User" oninput="saveSettingsField('User', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+                        <input type="text" id="User" oninput="saveSettingsField('User', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="Votre nom ici">
 
                         <label for="Doti">Doti :</label>
-                        <input type="number" id="Doti" inputmode="numeric" min="0" step="1" oninput="saveSettingsField('Doti', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+                        <input type="number" id="Doti" inputmode="numeric" min="0" step="1" oninput="saveSettingsField('Doti', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="Votre Doti ici">
 
 
                         <label for="Etblsmnt">Établissement :</label>
-                        <input type="text" id="Etblsmnt" oninput="saveSettingsField('Etblsmnt', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+                        <input type="text" id="Etblsmnt" oninput="saveSettingsField('Etblsmnt', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="L'établissement où vous enseignez">
 
                         <label for="Piste">Piste en m:</label>
-                        <input type="text" id="Piste" oninput="saveSettingsField('Piste', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+                        <input type="text" id="Piste" oninput="saveSettingsField('Piste', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="La longueur de la piste en mètres, indispensable si vous utilisez le test demi-cooper pour la VMA">
 
                         <label for="TstVMA">Test VMA :</label>
                         <select id="TstVMA" onchange="saveSettingsField('TstVMA', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
@@ -807,7 +807,7 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
         
         <!-- Nombre de séances par cycle -->
         <label for="NbrSCyl">Nbr S/cycle :</label>
-        <select id="NbrSCyl" onchange="saveSettingsField('NbrSCyl', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+        <select id="NbrSCyl" onchange="saveSettingsField('NbrSCyl', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="Nombre de séances par cycle">
             <option value="1">6 Séances</option>
             <option value="2">8 Séances</option>
             <option value="3">10 Séances</option>
@@ -816,7 +816,7 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
 
         <!-- Valeur A -->
         <label for="ValA">Valeur A :</label>
-        <select id="ValA" onchange="saveSettingsField('ValA', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+        <select id="ValA" onchange="saveSettingsField('ValA', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="Malus pour chaque séance absentée">
             <option value="1">0,25</option>  
             <option value="2">0,3</option>
             <option value="3">0,33</option>
@@ -830,7 +830,7 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
 
         <!-- Valeur T -->
         <label for="ValT">Valeur T :</label>
-        <select id="ValT" onchange="saveSettingsField('ValT', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+        <select id="ValT" onchange="saveSettingsField('ValT', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="Malus pour chaque séance présent sans tenue">
             <option value="1">0,25</option>
             <option value="2">0,3</option>
             <option value="3">0,33</option>
@@ -844,7 +844,7 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
 
         <!-- Grâce T -->
         <label for="GrcT">Grc T :</label>
-        <input type="number" id="GrcT" min="0" max="12" step="1" oninput="valLimtGrcT(this); saveSettingsField('GrcT', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+        <input type="number" id="GrcT" min="0" max="12" step="1" oninput="valLimtGrcT(this); saveSettingsField('GrcT', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="Nombre de séances graciées (présences sans tenue avant d'appliquer le malus).">
     </div>
 </fieldset>
 
@@ -862,7 +862,7 @@ function valLimtGrcT(input) {
                     <legend style="padding:0 10px; font-weight:bold; color:var(--main-color1);">👥 Gestion des groupes</legend>
                     <div style="display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: center; margin-top: 10px;">
                         <label for="NbrGCls">Nbr Groupes Classe :</label>
-                        <select id="NbrGCls" onchange="saveSettingsField('NbrGCls', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+                        <select id="NbrGCls" onchange="saveSettingsField('NbrGCls', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="Nombre de groupes par classe">
                             <option value="1">Sélectionner...</option>
                             <option value="2">2 Groupes</option>
                             <option value="3">3 Groupes</option>
@@ -3679,11 +3679,11 @@ function _statsAvancement(activeClasses) {
                 if (statut === 'normal' || statut === undefined) {
                     bgColor = coul; // couleur de progression normale
                 } else if (statut === 'MT') {
-                    bgColor = 'linear-gradient(45deg, #126cf3 0%, #f39c1200 70%)';
+                    bgColor = 'linear-gradient(180deg, #126cf3 30%, #d1000000 31%, #d1000000 69%, #126cf3 70%)';
                 } else if (statut === 'Réunion') {
-                    bgColor = 'linear-gradient(45deg, #9d9807 0%, #f39c1200 70%)'; 
+                    bgColor = 'linear-gradient(180deg, #9d9807 30%, #d1000000 31%, #d1000000 69%, #9d9807 70%)'; 
                 } else if (statut === 'Mission') {
-                    bgColor = 'linear-gradient(45deg, #d10000 0%, #f39c1200 70%)'; 
+                    bgColor = 'linear-gradient(180deg, #d10000 30%, #d1000000 31%, #d1000000 69%, #d10000 70%)'; 
                 }
             }
             
@@ -4043,14 +4043,20 @@ function _statsDispenses(activeClasses) {
 
 
 function _statsTable(d, activeClasses) {
-// Tableau récapitulatif par classe
-    const rows = activeClasses.map(cn => {
-        const cl = classesDB[cn];
-        const nb = cl.students?.length || 0;
-        const g  = cl.students?.filter(s=>s.index==='G').length || 0;
-        const f  = cl.students?.filter(s=>s.index==='F').length || 0;
-        const dd = cl.students?.filter(s=>s.index==='D').length || 0;
-        const moy = d.classMoyMap[cn] || '—';
+    // 1. Tri alphabétique des noms de classes
+    const sortedClasses = [...activeClasses].sort((a, b) => a.localeCompare(b));
+
+    // 2. Génération des lignes HTML
+    const rows = sortedClasses.map(cn => {
+        const cl = classesDB[cn] || {};
+        const students = cl.students || [];
+
+        const nb  = students.length;
+        const g   = students.filter(s => s.index === 'G').length;
+        const f   = students.filter(s => s.index === 'F').length;
+        const dd  = students.filter(s => s.index === 'D').length;
+        const moy = d?.classMoyMap?.[cn] ?? '—';
+
         return `<tr>
             <td style="padding:5px 8px; border:1px solid #eee; font-weight:bold">
                 <span class="clickable-stats" onclick="openClass('${cn}')" title="Ouvrir la classe">${cn}</span>
@@ -4063,20 +4069,24 @@ function _statsTable(d, activeClasses) {
         </tr>`;
     }).join('');
 
-    document.getElementById('stats-table').innerHTML = `
-        <table style="width:100%; border-collapse:collapse; font-size:13px;">
-            <thead>
-                <tr style="background:var(--main-color1); color:#fff;">
-                    <th style="padding:6px 8px; text-align:left">Classe</th>
-                    <th style="padding:6px 8px">Élèves</th>
-                    <th style="padding:6px 8px">G</th>
-                    <th style="padding:6px 8px">F</th>
-                    <th style="padding:6px 8px">D</th>
-                    <th style="padding:6px 8px">Moy. /20</th>
-                </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-        </table>`;
+    // 3. Injection dans le DOM
+    const container = document.getElementById('stats-table');
+    if (container) {
+        container.innerHTML = `
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="background:var(--main-color1); color:#fff;">
+                        <th style="padding:6px 8px; text-align:left">Classe</th>
+                        <th style="padding:6px 8px">Élèves</th>
+                        <th style="padding:6px 8px">G</th>
+                        <th style="padding:6px 8px">F</th>
+                        <th style="padding:6px 8px">D</th>
+                        <th style="padding:6px 8px">Moy. /20</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+    }
 }
 
 function renderStats() {
@@ -5810,7 +5820,7 @@ function renderPPGListTests() {
                 <tbody>${tbodyRows}</tbody>
             </table>
         </div>
-        <p style="font-size:10px; color:#888; margin-top:4px;">💡 Les colonnes N° et Nom sont figées. Défilez horizontalement pour voir les autres données. Les élèves dispensés (D) ont les champs de tests physiques désactivés.</p>
+        <p style="font-size:10px; color:#888; margin-top:4px;">💡 Les élèves dispensés (D) ont les champs de tests physiques désactivés. Défilez horizontalement pour voir les autres données.</p>
     `;
 
     // Navigation clavier dans la grille PPG
