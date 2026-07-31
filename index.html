@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.014</title>
+    <title>SmartEPS v2.015'</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -315,6 +315,21 @@
     body.dark-mode .menu-item:hover {
         background: #2a3a5a !important;
         color: #fff !important;
+    }
+        /* Sous-menu Classe - mode sombre */
+    body.dark-mode #submenu-classe {
+        background: #1e1e2e !important;
+        border: 1px solid #3a3a5a !important;
+    }
+    body.dark-mode #submenu-classe .menu-item-class {
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode #submenu-classe .menu-item-class:hover {
+        background: #2a3a5a !important;
+        color: #fff !important;
+    }
+    body.dark-mode #submenu-classe .menu-item-class {
+        border-bottom-color: #3a3a5a !important;
     }
 
     /* Statistiques */
@@ -642,22 +657,45 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
             
         <div class="dropdown-container" style="position: relative; display: inline-block;">
     
+    
 <button type="button" onclick="toggleMenu(event)">
     🧾 <span class="button-label">Menu</span>
 </button>
 
 <div id="dropdown-menu" style="display: none; position: absolute; top: 35px; right: 10px; background: white; color: #333; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2000; min-width: 180px;">
     <div id="dropdown-menu-content" style="display: flex; flex-direction: column;">
-        <div class="menu-item-class" onclick="openUserSwitchModal(); closeMenu();">🧑🏼‍🏫Changer professeur</div>
-        <div class="menu-item-class" onclick="createNewUser(); closeMenu();">+🧑🏼‍🏫Nouvel utilisateur</div>
-        <div class="menu-item-class" onclick="saveToExcel(); closeMenu();">💾Enregistrer</div>
-        <div class="menu-item-class" onclick=" saveToExcel(true); closeMenu();">+💾Sauvegarde</div>
-        <div class="menu-item-class" onclick="importFromExcel(); closeMenu();">🔗Lier</div>
-        <div class="menu-item-class" onclick="exportNotesToExcel(); closeMenu();">📤Exporter Notes</div>
-        <div class="menu-item-class" onclick="closeMenu(); printPage();">🖨️Impression</div>
-        <div class="menu-item-class" onclick="closeMenu(); showTab('stats');">📊Statistiques</div>
-        <div class="menu-item-class" onclick="showTab('settings'); closeMenu();">⚙️Paramètres</div >
+        
+        <!-- Section Professeur -->
+        <div class="menu-item-class" onclick="openUserSwitchModal(); closeMenu();">🧑🏼‍🏫 Changer professeur</div>
+        <div class="menu-item-class" onclick="createNewUser(); closeMenu();">+🧑🏼‍🏫 Nouvel utilisateur</div>
+        
+        <!-- Section Fichier -->
+        <div class="menu-item-class" onclick="saveToExcel(); closeMenu();">💾 Enregistrer</div>
+        <div class="menu-item-class" onclick="saveToExcel(true); closeMenu();">+💾 Sauvegarde</div>
+        <div class="menu-item-class" onclick="importFromExcel(); closeMenu();">🔗 Lier</div>
+        
+        <!-- Section Classe (sous-menu) -->
+        <div class="menu-item-class" style="position: relative; cursor: pointer;" 
+             onmouseenter="document.getElementById('submenu-classe').style.display='block'" 
+             onmouseleave="document.getElementById('submenu-classe').style.display='none'">
+            ◄👥 Classe
+            <div id="submenu-classe" style="display: none; position: absolute; right: 50%; top: 0; background: white; color: #333; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); min-width: 180px; z-index: 3000;">
+                <div class="menu-item-class" onclick="exportNotesToExcel(); closeMenu();" style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; white-space: nowrap;">
+                    📤 Exporter Notes
+                </div>
+                <div class="menu-item-class" onclick="autoAssignGroups(); closeMenu();" style="padding: 10px 15px; cursor: pointer; white-space: nowrap;">
+                    🎲 Répartir en Grps.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section Outils -->
+        <div class="menu-item-class" onclick="closeMenu(); printPage();">🖨️ Impression</div>
+        <div class="menu-item-class" onclick="closeMenu(); showTab('stats');">📊 Statistiques</div>
+        <div class="menu-item-class" onclick="showTab('settings'); closeMenu();">⚙️ Paramètres</div>
+        
     </div>
+</div>
 </div>
 </div>
     </div>
@@ -714,7 +752,6 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
             <h2 id="class-title" style="color:var(--main-color1); margin-left: 5px; margin-bottom:5px;"></h2>
             <div style="margin-left: auto; display: flex; gap: 8px;">
-                <button type="button" style="background-color: #e67e22; color: white; border: none; padding: 5px 10px; cursor: pointer;" onclick="autoAssignGroups()">🎲 Répartir</button>
                 <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white; border: none; padding: 5px 10px; cursor: pointer;" onclick="_ppgForceClassFilter = currentClass; showTab('PPG');">🧬 PPG</button>
                 <button class="btn-retour" style="cursor: pointer;" onclick="showTab('import')">⬅ Retour</button>
             </div>
