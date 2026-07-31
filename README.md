@@ -166,5 +166,5 @@
 	*gestion des groupes
 	
 2.015	:
-	*sous menu Classe: Export notes | *Répartir en Grps | PPG
-	modification NGrp clic droit (sans liste déroulante)
+	*sous menu Classe: Export notes | Répartir en Grps | PPG
+	*modification NGrp clic droit (sans liste déroulante)
