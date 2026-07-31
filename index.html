@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.015'</title>
+    <title>SmartEPS v2.015</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -92,7 +92,8 @@
         /* MENU CONTEXTUEL CLASSES*/
         #context-menu {display:none;position:fixed;background:#fff;border:1px solid #ddd;box-shadow:0 4px 15px rgba(0,0,0,0.15);z-index:1000;border-radius:5px;overflow:hidden;min-width:180px}
         .menu-item {padding:5px 5px;cursor:pointer;font-size:14px; transition: 0.2s}
-        .menu-item:hover {background: var(--update-color1); color:#f0edff}
+        .menu-item:hover {background: var(--main-color1); color:#f0edff}
+        .menu-item.maj:hover {background: var(--update-color1); color:#f0edff}
         .menu-item.delete {color: var(--delete-color1); border-top: 1px solid #eee}
         .menu-item.delete:hover {background: var(--delete-color1); color: white}
 
@@ -479,6 +480,24 @@
     body.dark-mode #custom-dialog-modal p {
         color: #c0c0c0 !important;
     }
+
+    /* Menu contextuel des groupes - mode sombre */
+    body.dark-mode #group-context-menu {
+        background: #1e1e2e !important;
+        border-color: #3a3a5a !important;
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode #group-context-menu .menu-item {
+        color: #e0e0e0 !important;
+    }
+    body.dark-mode #group-context-menu .menu-item:hover {
+        background: var(--main-color2) !important;
+        color: #fff !important;
+    }
+    body.dark-mode #group-context-menu .menu-item[style*="background:#f0edff"] {
+        background: #2a3a5a !important;
+        color: #fff !important;
+    }
     </style>
 </head>
 
@@ -680,6 +699,9 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
              onmouseleave="document.getElementById('submenu-classe').style.display='none'">
             ◄👥 Classe
             <div id="submenu-classe" style="display: none; position: absolute; right: 50%; top: 0; background: white; color: #333; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); min-width: 180px; z-index: 3000;">
+                <div class="menu-item-class" onclick="_ppgForceClassFilter = currentClass; showTab('PPG'); closeMenu();" style="padding: 10px 15px; cursor: pointer; white-space: nowrap;">
+                    🧬 PPG
+                </div>
                 <div class="menu-item-class" onclick="exportNotesToExcel(); closeMenu();" style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; white-space: nowrap;">
                     📤 Exporter Notes
                 </div>
@@ -752,7 +774,6 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
             <h2 id="class-title" style="color:var(--main-color1); margin-left: 5px; margin-bottom:5px;"></h2>
             <div style="margin-left: auto; display: flex; gap: 8px;">
-                <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white; border: none; padding: 5px 10px; cursor: pointer;" onclick="_ppgForceClassFilter = currentClass; showTab('PPG');">🧬 PPG</button>
                 <button class="btn-retour" style="cursor: pointer;" onclick="showTab('import')">⬅ Retour</button>
             </div>
         </div>
@@ -1232,7 +1253,7 @@ function initGroupVisibility() {
     </div>
 </div>
 <div id="context-menu">
-    <div class="menu-item" onclick="updateClass()">🔄 Mettre à jour (Excel-Massar)</div>
+    <div class="menu-item maj" onclick="updateClass()">🔄 Mettre à jour (Excel-Massar)</div>
     <div class="menu-item delete" onclick="deleteClass()">🗑️ Supprimer la classe</div>
 </div>
 <div id="status-picker" style="display:none; position:fixed; background:#fff; border:1px solid #6c5ce7; box-shadow:0 2px 10px rgba(0,0,0,0.2); z-index:2000; border-radius:8px; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 5px;">
@@ -1825,10 +1846,10 @@ function openClass(name) {
                         <option value="D" ${s.index=='D'?'selected':''}>D</option>
                     </select>
                 </td>
-                <td style="width:60px">
-                    <select onchange="updateGroup(${i}, this.value)" style="width:100%; text-align:center;">
-                        ${groupOptions}
-                    </select>
+                <td style="width:60px; cursor:context-menu; font-weight:bold; text-align:center;"
+                    oncontextmenu="showGroupContextMenu(event, ${i})"
+                    title="Clic droit pour changer le groupe">
+                    ${groupe || '-'}
                 </td>
                 ${notesCells}
                 <td style="font-weight:bold; font-size:13px">${moyenneGen}</td>
@@ -2188,6 +2209,102 @@ function shuffleArray(array) {
     }
     return array;
 }
+
+// ============================================================
+// GESTION DU MENU CONTEXTUEL DES GROUPES (clic droit)
+// ============================================================
+
+let _groupContextStudentIdx = null;
+
+// Affiche le menu contextuel pour un élève
+function showGroupContextMenu(e, studentIdx) {
+    e.preventDefault();
+    _groupContextStudentIdx = studentIdx;
+    const menu = document.getElementById('group-context-menu');
+    
+    // Récupérer le nombre de groupes configuré
+    const nbGroupes = getNbGroupes();
+    if (nbGroupes === 0) {
+        alert("Veuillez d'abord configurer le nombre de groupes dans Paramètres.");
+        return;
+    }
+    
+    // Générer les options du menu
+    const student = classesDB[currentClass].students[studentIdx];
+    const currentGroup = student.groupe || '';
+    
+    let html = '';
+    // Option "Aucun groupe"
+    html += `<div class="menu-item" onclick="setGroupFromContext('')" style="${currentGroup === '' ? 'background:#f0edff; font-weight:bold;' : ''}">
+        ➖ Aucun
+    </div>`;
+    
+    // Options pour chaque groupe
+    for (let g = 1; g <= nbGroupes; g++) {
+        const isActive = (currentGroup === String(g));
+        html += `<div class="menu-item" onclick="setGroupFromContext('${g}')" style="${isActive ? 'background:#f0edff; font-weight:bold;' : ''}">
+            ${isActive ? '✅ ' : ''}Groupe ${g}
+        </div>`;
+    }
+    
+    // Ajouter une option pour répartir automatiquement (si plusieurs élèves)
+    html += `<div class="menu-item" style="border-top:1px solid #eee; " onclick="setGroupFromContext('auto')">
+        🎲 Répartir tous
+    </div>`;
+    
+    menu.innerHTML = html;
+    menu.style.display = 'block';
+    menu.style.left = e.pageX + 'px';
+    menu.style.top = e.pageY + 'px';
+}
+
+// Fonction appelée depuis le menu contextuel
+function setGroupFromContext(groupValue) {
+    if (_groupContextStudentIdx === null) return;
+    
+    const student = classesDB[currentClass].students[_groupContextStudentIdx];
+    
+    if (groupValue === 'auto') {
+        // Répartir automatiquement tous les élèves
+        autoAssignGroups();
+        document.getElementById('group-context-menu').style.display = 'none';
+        _groupContextStudentIdx = null;
+        return;
+    }
+    
+    // Mettre à jour le groupe
+    student.groupe = groupValue || '';
+    save();
+    
+    // Rafraîchir l'affichage de la classe
+    openClass(currentClass);
+    
+    document.getElementById('group-context-menu').style.display = 'none';
+    _groupContextStudentIdx = null;
+}
+
+// Masquer le menu contextuel des groupes au clic ailleurs
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('group-context-menu');
+    if (menu && menu.style.display === 'block') {
+        // Ne pas fermer si on clique sur le menu lui-même
+        if (!menu.contains(e.target)) {
+            menu.style.display = 'none';
+            _groupContextStudentIdx = null;
+        }
+    }
+});
+
+// Masquer également avec la touche Echap
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const menu = document.getElementById('group-context-menu');
+        if (menu) {
+            menu.style.display = 'none';
+            _groupContextStudentIdx = null;
+        }
+    }
+});
 
 // Variable globale pour stocker la discipline ciblée
 let contextDisc = null;
@@ -7720,6 +7837,11 @@ function exportNotesToExcel() {
 <div id="cycle-context-menu" style="display:none; position:fixed; background:#fff; border:1px solid #ddd; box-shadow:0 4px 15px rgba(0,0,0,0.15); z-index:1000; border-radius:5px; overflow:hidden; min-width:160px;">
     <div class="menu-item" onclick="resetCycle()">🔄 Réinitialiser le cycle</div>
     <div class="menu-item delete" onclick="deleteCycle()">🗑️ Supprimer le cycle</div>
+</div>
+
+<!-- Menu contextuel pour les groupes -->
+<div id="group-context-menu" style="display:none; position:fixed; background:#fff; border:1px solid #ddd; box-shadow:0 4px 15px rgba(0,0,0,0.15); z-index:1000; border-radius:5px; overflow:hidden; min-width:150px;">
+    <!-- Les options seront générées dynamiquement -->
 </div>
 
 <!-- MODALE D'EXPORT DES NOTES -->
