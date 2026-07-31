@@ -161,3 +161,6 @@
 
 2.013	:
 	*nature de séance par click droit sur "S"
+
+2.014	:
+	*gestion des groupes
