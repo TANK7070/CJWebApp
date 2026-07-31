@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.013</title>
+    <title>SmartEPS v2.014</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -451,6 +451,19 @@
     body.dark-mode .export-order-badge {
         color: #ffffff !important;
     }
+
+    /* Boîte de dialogue personnalisée - mode sombre */
+    body.dark-mode #custom-dialog-modal > div {
+        background: #1e1e2e !important;
+        color: #e0e0e0 !important;
+        border: 1px solid #3a3a5a !important;
+    }
+    body.dark-mode #custom-dialog-modal h3 {
+        color: var(--main-color2) !important;
+    }
+    body.dark-mode #custom-dialog-modal p {
+        color: #c0c0c0 !important;
+    }
     </style>
 </head>
 
@@ -699,10 +712,9 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
 
     <div class="section" id="sec-classe">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-            <!-- Le titre reste à gauche -->
             <h2 id="class-title" style="color:var(--main-color1); margin-left: 5px; margin-bottom:5px;"></h2>
-            <!-- Ce bloc pousse les deux boutons ensemble vers la droite -->
             <div style="margin-left: auto; display: flex; gap: 8px;">
+                <button type="button" style="background-color: #e67e22; color: white; border: none; padding: 5px 10px; cursor: pointer;" onclick="autoAssignGroups()">🎲 Répartir</button>
                 <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white; border: none; padding: 5px 10px; cursor: pointer;" onclick="_ppgForceClassFilter = currentClass; showTab('PPG');">🧬 PPG</button>
                 <button class="btn-retour" style="cursor: pointer;" onclick="showTab('import')">⬅ Retour</button>
             </div>
@@ -861,8 +873,8 @@ function valLimtGrcT(input) {
                 <fieldset style="padding:15px; border:1px solid #ddd; border-radius:8px;">
                     <legend style="padding:0 10px; font-weight:bold; color:var(--main-color1);">👥 Gestion des groupes</legend>
                     <div style="display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: center; margin-top: 10px;">
-                        <label for="NbrGCls">Nbr Groupes Classe :</label>
-                        <select id="NbrGCls" onchange="saveSettingsField('NbrGCls', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="Nombre de groupes par classe">
+                        <label for="NbrGCls" title="Nombre de groupes par classe">Nbr Grps/Cls :</label>
+                        <select id="NbrGCls" onchange="updateGroupVisibility(this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;" title="Nombre de groupes par classe">
                             <option value="1">Sélectionner...</option>
                             <option value="2">2 Groupes</option>
                             <option value="3">3 Groupes</option>
@@ -870,19 +882,119 @@ function valLimtGrcT(input) {
                         </select>
 
                         <label for="Grp1">Groupe 1 :</label>
-                        <input type="text" id="Grp1" oninput="saveSettingsField('Grp1', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+                        <select id="Grp1" onchange="saveSettingsField('Grp1', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333; display:none; "title="Couleur de groupe 1">
+                            <option value="1">Couleur Grp1</option>
+                            <option value="2" style="background-color: white; color: #121212;">Blanc</option>
+                            <option value="3" style="background-color: blue; color: #888;">Bleu</option>
+                            <option value="4" style="background-color: skyblue; color: #474747;">Bleu-ciel</option>
+                            <option value="5" style="background-color: rgba(229, 255, 0, 0.87); color: #4e4e4e;">Jaune</option>
+                            <option value="6" style="background-color: black; color: white;">Noir</option>
+                            <option value="7" style="background-color: rgb(255, 68, 0); color: #c0bfbf;">Orange</option>
+                            <option value="8" style="background-color: red; color: #2e2e2e;">Rouge</option>
+                            <option value="9" style="background-color: green; color: #dddddd;">Vert</option>
+                            <option value="10" style="background-color: purple; color: #b9b9b9;">Violet</option>
+                        </select>
 
                         <label for="Grp2">Groupe 2 :</label>
-                        <input type="text" id="Grp2" oninput="saveSettingsField('Grp2', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+                        <select id="Grp2" onchange="saveSettingsField('Grp2', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333; display:none;" title="Couleur de groupe 2">
+                            <option value="1">Couleur Grp2</option>
+                            <option value="2" style="background-color: white; color: #121212;">Blanc</option>
+                            <option value="3" style="background-color: blue; color: #888;">Bleu</option>
+                            <option value="4" style="background-color: skyblue; color: #474747;">Bleu-ciel</option>
+                            <option value="5" style="background-color: rgba(229, 255, 0, 0.87); color: #4e4e4e;">Jaune</option>
+                            <option value="6" style="background-color: black; color: white;">Noir</option>
+                            <option value="7" style="background-color: rgb(255, 68, 0); color: #c0bfbf;">Orange</option>
+                            <option value="8" style="background-color: red; color: #2e2e2e;">Rouge</option>
+                            <option value="9" style="background-color: green; color: #dddddd;">Vert</option>
+                            <option value="10" style="background-color: purple; color: #b9b9b9;">Violet</option>
+                        </select>
 
                         <label for="Grp3">Groupe 3 :</label>
-                        <input type="text" id="Grp3" oninput="saveSettingsField('Grp3', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+                        <select id="Grp3" onchange="saveSettingsField('Grp3', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333; display:none;" title="Couleur de groupe 3">
+                            <option value="1">Couleur Grp3</option>
+                            <option value="2" style="background-color: white; color: #121212;">Blanc</option>
+                            <option value="3" style="background-color: blue; color: #888;">Bleu</option>
+                            <option value="4" style="background-color: skyblue; color: #474747;">Bleu-ciel</option>
+                            <option value="5" style="background-color: rgba(229, 255, 0, 0.87); color: #4e4e4e;">Jaune</option>
+                            <option value="6" style="background-color: black; color: white;">Noir</option>
+                            <option value="7" style="background-color: rgb(255, 68, 0); color: #c0bfbf;">Orange</option>
+                            <option value="8" style="background-color: red; color: #2e2e2e;">Rouge</option>
+                            <option value="9" style="background-color: green; color: #dddddd;">Vert</option>
+                            <option value="10" style="background-color: purple; color: #b9b9b9;">Violet</option>
+                        </select>
 
                         <label for="Grp4">Groupe 4 :</label>
-                        <input type="text" id="Grp4" oninput="saveSettingsField('Grp4', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333;">
+                        <select id="Grp4" onchange="saveSettingsField('Grp4', this.value)" style="border: 1px solid #ddd; padding: 6px; border-radius: 4px; color: #333; display:none;" title="Couleur de groupe 4">
+                            <option value="1">Couleur Grp4</option>
+                            <option value="2" style="background-color: white; color: #121212;">Blanc</option>
+                            <option value="3" style="background-color: blue; color: #888;">Bleu</option>
+                            <option value="4" style="background-color: skyblue; color: #474747;">Bleu-ciel</option>
+                            <option value="5" style="background-color: rgba(229, 255, 0, 0.87); color: #4e4e4e;">Jaune</option>
+                            <option value="6" style="background-color: black; color: white;">Noir</option>
+                            <option value="7" style="background-color: rgb(255, 68, 0); color: #c0bfbf;">Orange</option>
+                            <option value="8" style="background-color: red; color: #2e2e2e;">Rouge</option>
+                            <option value="9" style="background-color: green; color: #dddddd;">Vert</option>
+                            <option value="10" style="background-color: purple; color: #b9b9b9;">Violet</option>
+                        </select>
                     </div>
                 </fieldset>
+<script>
+// ============================================================
+// GESTION DES GROUPES (Paramètres)
+// ============================================================
 
+// Met à jour la visibilité des listes déroulantes de groupes
+function updateGroupVisibility(value) {
+    const grp1 = document.getElementById('Grp1');
+    const grp2 = document.getElementById('Grp2');
+    const grp3 = document.getElementById('Grp3');
+    const grp4 = document.getElementById('Grp4');
+    
+    const labels = [
+        document.querySelector('label[for="Grp1"]'),
+        document.querySelector('label[for="Grp2"]'),
+        document.querySelector('label[for="Grp3"]'),
+        document.querySelector('label[for="Grp4"]')
+    ];
+    
+    // Masquer tous les groupes par défaut
+    [grp1, grp2, grp3, grp4].forEach(el => {
+        if (el) el.style.display = 'none';
+    });
+    labels.forEach(el => {
+        if (el) el.style.display = 'none';
+    });
+    
+    // Nombre de groupes à afficher
+    let nbGroupes = 0;
+    if (value === '2') nbGroupes = 2;
+    else if (value === '3') nbGroupes = 3;
+    else if (value === '4') nbGroupes = 4;
+    else nbGroupes = 0; // valeur '1' ou autre
+    
+    // Afficher les groupes demandés
+    for (let i = 0; i < nbGroupes; i++) {
+        const select = document.getElementById('Grp' + (i + 1));
+        const label = document.querySelector('label[for="Grp' + (i + 1) + '"]');
+        if (select) select.style.display = '';
+        if (label) label.style.display = '';
+    }
+    
+    // Sauvegarder la valeur dans les paramètres
+    saveSettingsField('NbrGCls', value);
+}
+
+// Initialise la visibilité des groupes au chargement
+function initGroupVisibility() {
+    const nbrGCls = document.getElementById('NbrGCls');
+    if (nbrGCls) {
+        // Récupérer la valeur sauvegardée ou utiliser la valeur par défaut
+        const savedValue = appSettings.NbrGCls || nbrGCls.value || '1';
+        nbrGCls.value = savedValue;
+        updateGroupVisibility(savedValue);
+    }
+}
+</script>
             </div>
 
             <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
@@ -1444,11 +1556,13 @@ function handleFiles(files) {
                 const existingStudent = (isUpdating && classesDB[classTargeted])
                     ? classesDB[classTargeted].students.find(s=>s.massar===id) : null;
                 students.push({ 
-                    massar: id||"", nom: nom||"",
+                    massar: id||"", 
+                    nom: nom||"",
                     dob: existingStudent?.dob || dob,
                     index: autoDetect(nom), 
                     grades: existingStudent?.grades || {},
-                    ppg: existingStudent?.ppg || {}
+                    ppg: existingStudent?.ppg || {},
+                    groupe: existingStudent?.groupe || ""  // Ajout du champ groupe
                 });
             }
             classesDB[classNameFromFile] = { 
@@ -1578,13 +1692,13 @@ function openClass(name) {
     // 2. Construction des en-têtes du tableau
     // ------------------------------------------------------------
     const thead = document.querySelector("#students-table").closest("table").querySelector("thead");
-    // On récupère le <thead> existant et on le vide
     thead.innerHTML = `
         <tr>
             <th>N°</th>
             <th class="col-massar">Massar</th>
             <th class="col-nom" style="background: var(--main-color2);">Nom & Prénom</th>
             <th style="width: 8px;">Sx</th>
+            <th style="width: 8px; background-color: #95a5a6; color: white;">Grp</th>
             ${disciplines.map(disc => `
                 <th style="background-color: ${couleurs[disc] || '#6c5ce7'}; cursor:pointer;"
                     onclick="openCycle('${disc}')"
@@ -1650,6 +1764,17 @@ function openClass(name) {
             })();
         }
 
+        // Récupération du groupe de l'élève (stocké dans s.groupe)
+        const groupe = s.groupe || "";
+
+        // Générer les options pour le groupe (1, 2, 3, 4 selon configuration)
+        const nbGroupes = getNbGroupes();
+        let groupOptions = '<option value="">-</option>';
+        for (let g = 1; g <= nbGroupes; g++) {
+            const selected = (groupe === String(g)) ? 'selected' : '';
+            groupOptions += `<option value="${g}" ${selected}>${g}</option>`;
+        }
+
         return `
             <tr class="bg-row-${s.index}">
                 <td>${i+1}</td>
@@ -1663,6 +1788,11 @@ function openClass(name) {
                         <option value="D" ${s.index=='D'?'selected':''}>D</option>
                     </select>
                 </td>
+                <td style="width:60px">
+                    <select onchange="updateGroup(${i}, this.value)" style="width:100%; text-align:center;">
+                        ${groupOptions}
+                    </select>
+                </td>
                 ${notesCells}
                 <td style="font-weight:bold; font-size:13px">${moyenneGen}</td>
                 <td style="font-size:12px">${appreciation}</td>
@@ -1671,6 +1801,355 @@ function openClass(name) {
     }).join("");
 
     showTab("classe");
+}
+
+// ============================================================
+// GESTION DES GROUPES
+// ============================================================
+
+// Retourne le nombre de groupes configuré
+function getNbGroupes() {
+    const nbrGCls = appSettings.NbrGCls || '1';
+    if (nbrGCls === '2') return 2;
+    if (nbrGCls === '3') return 3;
+    if (nbrGCls === '4') return 4;
+    return 0;
+}
+
+// Met à jour le groupe d'un élève (attribution manuelle)
+function updateGroup(studentIdx, value) {
+    const s = classesDB[currentClass].students[studentIdx];
+    s.groupe = value || '';
+    save();
+}
+
+// ==========================================================
+// RÉPARTITION AUTOMATIQUE ÉQUILIBRÉE DES GROUPES
+// ==========================================================
+async function autoAssignGroups() {
+    if (!currentClass || !classesDB[currentClass]) {
+        alert("Veuillez d'abord ouvrir une classe.");
+        return;
+    }
+
+    const students = classesDB[currentClass].students;
+    if (students.length === 0) {
+        alert("La classe ne contient aucun élève.");
+        return;
+    }
+
+    const nbGroupes = getNbGroupes();
+    if (nbGroupes === 0) {
+        alert("Veuillez d'abord configurer le nombre de groupes dans Paramètres.");
+        return;
+    }
+
+    // Identifier les élèves concernés
+    const elevesARePartir = students.filter(s => s.index === 'G' || s.index === 'F');
+    const elevesSansGroupe = elevesARePartir.filter(s => !s.groupe || s.groupe === '');
+    const elevesAvecGroupe = elevesARePartir.filter(s => s.groupe && s.groupe !== '');
+    const elevesIgnores = students.filter(s => s.index === 'D' || s.index === '?');
+
+    // Vérifier s'il y a des élèves à traiter
+    if (elevesARePartir.length === 0) {
+        alert("Aucun élève avec un sexe défini (G ou F) à répartir.");
+        return;
+    }
+
+    // Déterminer l'action à proposer
+    let action = 'repartir';
+    
+    if (elevesSansGroupe.length === 0 && elevesAvecGroupe.length > 0) {
+        // Tous les élèves ont déjà un groupe
+        const msg = "Tous les élèves ont déjà un groupe.\n\n" +
+                    "Que souhaitez-vous faire ?\n\n" +
+                    "🔄 [OK] : Réinitialiser tout (repartir tous les élèves)\n" +
+                    "❌ [Annuler] : Ne rien faire\n\n" +
+                    "Cliquez sur OK pour réinitialiser, Annuler pour quitter.";
+        if (!confirm(msg)) return;
+        action = 'reinitialiser';
+        
+    } else if (elevesSansGroupe.length > 0 && elevesAvecGroupe.length > 0) {
+        // Il y a des nouveaux élèves ET des élèves déjà groupés
+        const choix = await showThreeOptionDialog(
+            "📋 Répartition des groupes",
+            `Nouveaux élèves sans groupe : ${elevesSansGroupe.length}\nÉlèves déjà groupés : ${elevesAvecGroupe.length}\n\nChoisissez une action :`,
+            ["🔄 Tout réinitialiser", "➕ Affecter les nouveaux", "❌ Annuler"]
+        );
+        
+        if (choix === 0) {
+            action = 'reinitialiser';
+        } else if (choix === 1) {
+            action = 'affecter_nouveaux';
+            if (elevesSansGroupe.length === 0) {
+                alert("Aucun nouvel élève à affecter.");
+                return;
+            }
+        } else {
+            return;
+        }
+        
+    } else if (elevesSansGroupe.length > 0 && elevesAvecGroupe.length === 0) {
+        const msg = "📋 " + elevesSansGroupe.length + " élève(s) sans groupe.\n\n" +
+                    "Voulez-vous procéder à la répartition automatique ?";
+        if (!confirm(msg)) return;
+        action = 'affecter_nouveaux';
+    }
+
+    // ---- EXÉCUTION SELON L'ACTION CHOISIE ----
+    
+    if (action === 'reinitialiser') {
+        // 🔄 RÉINITIALISATION COMPLÈTE avec équilibre garanti
+        // Réinitialiser TOUS les groupes des élèves G et F
+        elevesARePartir.forEach(s => s.groupe = '');
+        
+        // Utiliser la fonction d'équilibrage pour une répartition optimale
+        repartirEquilibre(elevesARePartir, nbGroupes);
+        
+        save();
+        openClass(currentClass);
+        
+        // Afficher le résumé
+        const eleves = classesDB[currentClass].students.filter(s => s.index === 'G' || s.index === 'F');
+        let summary = "✅ Tous les groupes ont été réinitialisés et répartis :\n\n";
+        for (let g = 1; g <= nbGroupes; g++) {
+            const nb = eleves.filter(s => s.groupe === String(g)).length;
+            const nbF = eleves.filter(s => s.groupe === String(g) && s.index === 'F').length;
+            const nbG = eleves.filter(s => s.groupe === String(g) && s.index === 'G').length;
+            summary += `Groupe ${g} : ${nb} élèves (♀️ ${nbF}, ♂️ ${nbG})\n`;
+        }
+        
+        if (elevesIgnores.length > 0) {
+            summary += `\n⚠️ Élèves non répartis (D ou ?) : ${elevesIgnores.length}`;
+        }
+        alert(summary);
+        
+    } else if (action === 'affecter_nouveaux') {
+        // ➕ AFFECTER UNIQUEMENT LES NOUVEAUX
+        
+        // Récupérer la distribution actuelle des groupes
+        const effectifsActuels = {};
+        for (let g = 1; g <= nbGroupes; g++) {
+            effectifsActuels[g] = elevesAvecGroupe.filter(s => s.groupe === String(g)).length;
+        }
+        
+        // Mélanger les nouveaux élèves
+        const nouveauxMelanges = shuffleArray([...elevesSansGroupe]);
+        
+        // Séparer par sexe
+        const nouvellesFilles = nouveauxMelanges.filter(s => s.index === 'F');
+        const nouveauxGarcons = nouveauxMelanges.filter(s => s.index === 'G');
+        
+        // Affecter les filles en priorité (répartition équilibrée)
+        nouvellesFilles.forEach(fille => {
+            // Trouver le groupe avec le moins d'élèves (en considérant les existants)
+            let minIndex = 1;
+            let minSize = effectifsActuels[1];
+            for (let g = 2; g <= nbGroupes; g++) {
+                if (effectifsActuels[g] < minSize) {
+                    minSize = effectifsActuels[g];
+                    minIndex = g;
+                }
+            }
+            fille.groupe = String(minIndex);
+            effectifsActuels[minIndex]++;
+        });
+        
+        // Affecter les garçons
+        nouveauxGarcons.forEach(garcon => {
+            let minIndex = 1;
+            let minSize = effectifsActuels[1];
+            for (let g = 2; g <= nbGroupes; g++) {
+                if (effectifsActuels[g] < minSize) {
+                    minSize = effectifsActuels[g];
+                    minIndex = g;
+                }
+            }
+            garcon.groupe = String(minIndex);
+            effectifsActuels[minIndex]++;
+        });
+        
+        save();
+        openClass(currentClass);
+        
+        // Résumé
+        let summary = "✅ Nouveaux élèves affectés :\n\n";
+        for (let g = 1; g <= nbGroupes; g++) {
+            const nb = elevesARePartir.filter(s => s.groupe === String(g)).length;
+            const nbF = elevesARePartir.filter(s => s.groupe === String(g) && s.index === 'F').length;
+            const nbG = elevesARePartir.filter(s => s.groupe === String(g) && s.index === 'G').length;
+            summary += `Groupe ${g} : ${nb} élèves (♀️ ${nbF}, ♂️ ${nbG})\n`;
+        }
+        summary += `\n✅ ${elevesSansGroupe.length} nouvel(s) élève(s) affecté(s).`;
+        alert(summary);
+    }
+}
+
+// ============================================================
+// BOÎTE DE DIALOGUE PERSONNALISÉE AVEC 3 BOUTONS
+// ============================================================
+function showThreeOptionDialog(title, message, options) {
+    // Créer une modale personnalisée
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+        background: var(--bg-color, white);
+        border-radius: 12px;
+        padding: 25px;
+        max-width: 450px;
+        width: 90%;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-color, #333);
+        border: var(--border-color, none);
+    `;
+    
+    // Ajouter des variables CSS personnalisées selon le mode
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    content.style.setProperty('--bg-color', isDarkMode ? '#1e1e2e' : 'white');
+    content.style.setProperty('--text-color', isDarkMode ? '#e0e0e0' : '#333');
+    content.style.setProperty('--border-color', isDarkMode ? '1px solid #3a3a5a' : 'none');
+    
+    // Titre
+    const titleEl = document.createElement('h3');
+    titleEl.textContent = title;
+    titleEl.style.cssText = `
+        margin: 0 0 10px 0;
+        color: ${isDarkMode ? 'var(--main-color2, #8a6eff)' : 'var(--main-color1, #036c8c)'};
+        font-size: 18px;
+    `;
+    content.appendChild(titleEl);
+    
+    // Message
+    const msgEl = document.createElement('p');
+    msgEl.textContent = message;
+    msgEl.style.cssText = `
+        margin: 0 0 20px 0;
+        font-size: 14px;
+        color: ${isDarkMode ? '#c0c0c0' : '#333'};
+        white-space: pre-line;
+        line-height: 1.5;
+    `;
+    content.appendChild(msgEl);
+    
+    // Conteneur des boutons
+    const btnContainer = document.createElement('div');
+    btnContainer.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    `;
+    
+    // Couleurs adaptées au mode
+    const colors = isDarkMode 
+        ? ['#d35400', '#1e8449', '#c0392b']
+        : ['#e67e22', '#27ae60', '#e74c3c'];
+    
+    const hoverColors = isDarkMode
+        ? ['#e67e22', '#27ae60', '#e74c3c']
+        : ['#d35400', '#1e8449', '#c0392b'];
+    
+    options.forEach((text, index) => {
+        const btn = document.createElement('button');
+        btn.textContent = text;
+        btn.style.cssText = `
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            background: ${colors[index]};
+            color: white;
+            transition: background 0.2s;
+            width: 100%;
+        `;
+        btn.onmouseover = () => {
+            btn.style.background = hoverColors[index];
+        };
+        btn.onmouseout = () => {
+            btn.style.background = colors[index];
+        };
+        btn.onclick = () => {
+            document.body.removeChild(modal);
+            if (window._dialogCallback) {
+                window._dialogCallback(index);
+            }
+        };
+        btnContainer.appendChild(btn);
+    });
+    
+    content.appendChild(btnContainer);
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    return new Promise((resolve) => {
+        window._dialogCallback = resolve;
+    });
+}
+
+// ============================================================
+// FONCTION DE RÉPARTITION (extrait pour éviter la duplication)
+// ============================================================
+
+function repartirEquilibre(eleves, nbGroupes) {
+    // Séparer par sexe
+    const filles = eleves.filter(s => s.index === 'F');
+    const garcons = eleves.filter(s => s.index === 'G');
+    
+    // Mélanger
+    const fillesMelangees = shuffleArray([...filles]);
+    const garconsMelanges = shuffleArray([...garcons]);
+    
+    // Initialiser les groupes
+    const groupes = Array.from({ length: nbGroupes }, () => []);
+    
+    // Répartir les filles
+    let groupeIndex = 0;
+    fillesMelangees.forEach(fille => {
+        groupes[groupeIndex % nbGroupes].push(fille);
+        groupeIndex++;
+    });
+    
+    // Répartir les garçons (remplir les groupes les moins peuplés)
+    const garconsMelangesTri = shuffleArray([...garconsMelanges]);
+    garconsMelangesTri.forEach(garcon => {
+        let minIndex = 0;
+        let minSize = groupes[0].length;
+        for (let i = 1; i < groupes.length; i++) {
+            if (groupes[i].length < minSize) {
+                minSize = groupes[i].length;
+                minIndex = i;
+            }
+        }
+        groupes[minIndex].push(garcon);
+    });
+    
+    // Assigner les numéros
+    for (let i = 0; i < groupes.length; i++) {
+        groupes[i].forEach(eleve => {
+            eleve.groupe = String(i + 1);
+        });
+    }
+}
+
+// Mélange aléatoire (Fisher-Yates)
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
 }
 
 // Variable globale pour stocker la discipline ciblée
@@ -2004,6 +2483,9 @@ function loadSettingsToUI() {
         }
     });
     updateUserBadge();
+    
+    // Initialiser la visibilité des groupes
+    initGroupVisibility();
 }
 
 // Met à jour le badge "🧑🏼‍🏫" du header avec le nom du professeur actif
@@ -3679,16 +4161,16 @@ function _statsAvancement(activeClasses) {
                 if (statut === 'normal' || statut === undefined) {
                     bgColor = coul; // couleur de progression normale
                 } else if (statut === 'MT') {
-                    bgColor = 'linear-gradient(180deg, #126cf3 30%, #d1000000 31%, #d1000000 69%, #126cf3 70%)';
+                    bgColor = 'linear-gradient(160deg, #126cf3 30%, #126cf34f 31%, #126cf34f 69%, #126cf3 70%)';
                 } else if (statut === 'Réunion') {
-                    bgColor = 'linear-gradient(180deg, #9d9807 30%, #d1000000 31%, #d1000000 69%, #9d9807 70%)'; 
+                    bgColor = 'linear-gradient(160deg, #9d9807 30%, #9d98074f 31%, #9d98074f 69%, #9d9807 70%)'; 
                 } else if (statut === 'Mission') {
-                    bgColor = 'linear-gradient(180deg, #d10000 30%, #d1000000 31%, #d1000000 69%, #d10000 70%)'; 
+                    bgColor = 'linear-gradient(160deg, #e74c3c 30%, #e74c3c4f 31%, #e74c3c4f 69%, #e74c3c 70%)'; 
                 }
             }
             
             return `<div style="flex:1; height:100%; background:${bgColor}; border-radius:2px; transition:background 0.3s; position:relative;" 
-                        title="${hasDate ? (statut === 'normal' || statut === undefined ? 'Séance effectuée' : statut) : 'Non planifiée'}"></div>`;
+                        title="${hasDate ? (statut === 'normal' || statut === undefined ? 'Séance effectuée' : statut) : 'Non effectuée'}"></div>`;
         }).join('');
 
         // Construction du HTML avec liens cliquables et informations de statut
