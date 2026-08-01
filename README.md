@@ -168,3 +168,6 @@
 2.015	:
 	*sous menu Classe: Export notes | Répartir en Grps | PPG
 	*modification NGrp clic droit (sans liste déroulante)
+
+2.016	:
+	*protection contre multi users avec même Doti
