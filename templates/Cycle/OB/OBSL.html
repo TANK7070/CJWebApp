@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>OBSL - Fiche d'observation - Saut en Longueur</title>
+<style>
+    @page { size: A4 portrait; margin: 5mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 7.5pt; color: #000; margin: 0; }
+
+    .entete {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid #333;
+        padding: 3px 6px;
+        margin-bottom: 3px;
+        font-weight: bold;
+        font-size: 8.5pt;
+    }
+    .entete .champ { display: flex; align-items: baseline; gap: 3px; }
+    .entete .champ .label { font-weight: normal; font-size: 7.5pt; }
+    .entete .legende { font-size: 7pt; }
+
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th, td { border: 1px solid #333; padding: 1px 2px; text-align: center; vertical-align: middle; }
+    thead th { font-size: 6.5pt; font-weight: bold; }
+    .small-text { font-size: 6pt; }
+    .left-align { text-align: left; padding-left: 3px; }
+    .nom-cell { font-weight: bold; font-size: 12pt; }
+    .empty-row td { height: 10px; padding: 0; }
+
+    .vertical-text {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        text-orientation: mixed;
+        font-size: 5.5pt;
+        font-weight: bold;
+        padding: 2px 1px;
+        line-height: 1.1;
+        letter-spacing: 0.5px;
+    }
+
+    .date-row td {
+        height: 71px;
+        padding: 0;
+        font-size: 5pt;
+        color: #888;
+        vertical-align: bottom;
+        padding-bottom: 2px;
+    }
+
+    tbody tr:nth-child(even) { background: #f7f7f7; }
+
+    .footer-note { font-size: 7px; color: #888; text-align: right; margin-top: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ===== EN-TÊTE ===== -->
+<div class="entete">
+    <div class="champ"><span class="label">Niveau :</span><strong>{{NIVEAU}}</strong></div>
+    <div class="champ"><span class="label">Cycle :</span><strong>Saut en Longueur</strong><img src="https://taoufikeps.wordpress.com/wp-content/uploads/2026/08/slsml.jpg" style="width: 16px; height: 16px; vertical-align:middle; opacity:1;"></div>
+    <div class="champ"><span class="label">Classe :</span><strong>{{CLASSE}}</strong></div>
+    <div class="champ"><span class="label">AS :</span><strong>{{AS}}</strong></div>
+    <div class="legende">D = {{TOTD}} &nbsp; G = {{TOTG}} &nbsp; F = {{TOTF}}</div>
+</div>
+
+<!-- ===== TABLEAU ===== -->
+<table>
+<colgroup>
+    <col style="width:3%;"><!--N°-->
+    <col style="width:16%;"><!--Nom & Prénom-->
+    <col style="width:3%;"><!--Sx-->
+    <col style="width:3%;"><!--Grp-->
+    <col style="width:3%;"><!--Grp. Phys.-->
+    <col style="width:4%;"><!--Conn.Conc.(3)-->
+    {{COLGROUP_VARIABLE}}
+</colgroup>
+<thead>
+    <!-- ===== LIGNE 1 ===== -->
+    <tr style="height:10px;">
+        <th rowspan="3" style="height:106.5px;">N°</th>
+        <th rowspan="3" class="left-align" style="height:106.5px;">Nom &amp; Prénom</th>
+        <th rowspan="3" style="height:106.5px;">Sx</th>
+        <th rowspan="3" style="height:106.5px;">Grp</th>
+        <th class="vertical-text" rowspan="3" style="height:106.5px;">Grp. Phys.</th>
+        <th class="vertical-text" rowspan="3" style="height:106.5px;">Conn.Conc.(3)</th>
+        {{VARIABLE_HEADER_MAIN}}
+        <th colspan="{{NBR_S}}" style="height:10px;">Séances</th>
+    </tr>
+
+    <!-- ===== LIGNE 2 ===== -->
+    <tr style="height:15.5px; font-weight: bold;">
+        {{VARIABLE_HEADER_SUB}}
+        {{SEANCE_HEADERS}}
+    </tr>
+
+    <!-- ===== LIGNE 3 : Cellules vides pour les dates ===== -->
+    <tr style="height:71px;" class="date-row">
+        {{SEANCE_HEADERS_EMPTY}}
+    </tr>
+</thead>
+<tbody>
+{{OBS_ROWS}}
+</tbody>
+</table>
+
+<p class="footer-note">©Taoufik_2026.</p>
+
+</body>
+</html>
