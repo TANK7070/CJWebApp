@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Cycle {{DISCIPLINE}} à {{CLASSE}}</title>
+    <style>
+        @page { size: A4; margin: 5mm; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Tahoma', 'Calibri', sans-serif; font-size: 9pt; color: black; margin: 0; }
+        table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+        col.c-no   { width: 12mm; }
+        col.c-sx   { width: 10mm; }
+        col.c-nom  { width: {{COL_NOM_W}}mm; }
+        col.c-grp  { width: 14mm; }
+        col.c-s    { width: {{COL_S_W}}mm; }
+        col.c-eval { width: 14mm; }
+        col.c-nf   { width: 16mm; }
+        th, td { border: 1px solid black; padding: 1px 2px; text-align: center;
+                 vertical-align: middle; overflow: hidden; white-space: nowrap; }
+        .left-align  { text-align: left; padding-left: 3px; }
+        .right-align { text-align: right; }
+        .small-text  { font-size: 7pt; }
+        .date-cell   { font-size: 6.5pt; }
+        .nom-cell    { text-align: left; font-size: 8pt; white-space: nowrap;
+                       overflow: hidden; text-overflow: ellipsis; }
+        .idx-cell    { font-size: 7.5pt; font-weight: bold; }
+        .grp-cell    { font-size: 8pt; font-weight: bold; text-align: center; }
+        .vertical-text { writing-mode: vertical-rl; transform: rotate(180deg);
+                         white-space: nowrap; padding: 4px 1px; font-size: 7pt; }
+        
+        /* === HAUTEUR FIXE DES LIGNES === */
+        /* En-têtes : compactes */
+        thead tr, tr.header-row {
+            height: 5mm;
+        }
+        
+        /* Élèves : hauteur fixe */
+        tr.student-row {
+            height: {{ROW_HEIGHT}}mm;
+            line-height: 1.2;
+        }
+        
+        /* Alternance de couleurs */
+        tr.student-row:nth-child(odd)  td { background: #fff; }
+        tr.student-row:nth-child(even) td { background: #f0f0f0; }
+        
+        @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            tr { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+<table>
+    <colgroup>
+        <col class="c-no"><col class="c-sx"><col class="c-nom"><col class="c-grp">
+        {{SEANCE_COLS}}
+        <col class="c-eval"><col class="c-eval"><col class="c-eval"><col class="c-eval">
+        <col class="c-nf">
+    </colgroup>
+    <tr>
+        <td colspan="4" class="right-align"><strong>Cycle :</strong></td>
+        <td colspan="{{NBR_S}}">{{DISCIPLINE}}</td>
+        <td colspan="2" class="right-align"><strong>AS :</strong></td>
+        <td colspan="3">{{AS}}</td>
+    </tr>
+    <tr class="header-row">
+        <th rowspan="4">N°</th>
+        <th rowspan="4">Sx</th>
+        <th rowspan="2">{{CLASSE}}</th>
+        <th rowspan="4">Grp</th>
+        <th colspan="{{NBR_S}}">Contrôle d'assiduité</th>
+        <th colspan="4">Evaluation</th>
+        <th rowspan="4">Note<br>Finale</th>
+    </tr>
+    <tr class="header-row">
+        {{SEANCES_HEADERS}}
+        <th rowspan="3" class="vertical-text">Comp.</th>
+        <th rowspan="3" class="vertical-text">Con.</th>
+        <th rowspan="3" class="vertical-text">C. Mot.</th>
+        <th rowspan="3" class="vertical-text">H. Mot.</th>
+    </tr>
+    <tr class="header-row">
+        <td class="left-align small-text"><strong>Date</strong></td>
+        {{DATES_ROW}}
+        <td colspan="2"></td>
+    </tr>
+    <tr class="header-row">
+        <td class="left-align date-cell"><strong>Nom & Prénom</strong></td>
+        {{EMPTY_SEANCE_CELLS}}
+        <td colspan="2"></td>
+    </tr>
+    {{STUDENT_ROWS}}
+</table>
+</body>
+</html>
