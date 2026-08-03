@@ -171,3 +171,6 @@
 
 2.016	:
 	*protection contre multi users avec même Doti
+
+2.017	:
+	*tableau imprimable (cahier d'observation) (except Gym)
