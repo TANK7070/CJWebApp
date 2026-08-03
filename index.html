@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.016</title>
+    <title>SmartEPS v2.017</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1363,12 +1363,14 @@ const LIB_URL = 'https://gist.githubusercontent.com/TANK7070/4c7889720ab7942164a
 const OBSERVATION_DATA = {
     	"Course de Durée 🏃🏽‍♀️‍➡⏰️": {
         title: "Observation - Course de Durée 🏃🏽‍♀️‍➡⏰️",
+        code: "CD",
         headers: ["N°", "Nom & Prénom", "Genre", "Perf. 1", "Perf. 2", "Perf. 3", "Meilleur T", "Nte Hab. Mot."],
         fields: ["p1", "p2", "p3", "best", "NtCD1"],
         direction: "min"
     },
 	"Course de Vitesse 🏃🏽‍♀️‍➡️": {
         title: "Observation - Course de Vitesse 🏃🏽‍♀️‍➡️",
+        code: "CV",
         groups: [
             { label: "Habilité Motrice", colspan: 4, color: "#990099" },
             { label: "",colspan: 1, color: "transparent" },
@@ -1380,6 +1382,7 @@ const OBSERVATION_DATA = {
     },
     "Saut en Hauteur": {
         title: "Observation - Saut en Hauteur",
+        code: "SH",
         groups: [
             { label: "Habilité Motrice", colspan: 4, color: "#990099" },
             { label: "",colspan: 1, color: "transparent" },
@@ -1391,6 +1394,7 @@ const OBSERVATION_DATA = {
     },
     "Saut en Longueur": {
         title: "Observation - Saut en Longueur",
+        code: "SL",
         groups: [
             { label: "Habilité Motrice", colspan: 4, color: "#990099" },
             { label: "",colspan: 1, color: "transparent" },
@@ -1402,6 +1406,7 @@ const OBSERVATION_DATA = {
     },
     "Lancer de Poids": {
         title: "Observation - Lancer de Poids",
+        code: "LP",
         groups: [
             { label: "Habilité Motrice", colspan: 4, color: "#990099" },
             { label: "",colspan: 1, color: "transparent" },
@@ -1413,6 +1418,7 @@ const OBSERVATION_DATA = {
     },
     "Basketball 🏀": {
         title: "Observation - Basketball 🏀",
+        code: "BB",
         groups: [
             { label: "Habilité motrice", colspan: 4, color: "#e67e22" }
         ],
@@ -1422,6 +1428,7 @@ const OBSERVATION_DATA = {
     },
     "Handball 🤾🏽‍♂️": {
         title: "Observation - Handball 🤾🏽‍♂️",
+        code: "HB",
         groups: [
             { label: "Habilité motrice", colspan: 4, color: "#e6b800" }
         ],
@@ -1431,6 +1438,7 @@ const OBSERVATION_DATA = {
     },
     "Volleyball 🏐": {
         title: "Observation - Volleyball 🏐",
+        code: "VB",
         groups: [
             { label: "Habilité motrice", colspan: 4, color: "#3399ff" }
         ],
@@ -1440,6 +1448,7 @@ const OBSERVATION_DATA = {
     },
     "Gymnastique 🤸🏽‍♀️": {
         title: "Observation - Gymnastique 🤸🏽‍♀️",
+        code: "Gym",
         groups: [
             { label: "Habilité Motrice", colspan: 3, color: "#990099" },
             { label: "",colspan: 1, color: "transparent" },
@@ -1451,6 +1460,7 @@ const OBSERVATION_DATA = {
     },
     "Sport.Co": {
         title: "Observation - Sport.Co",
+        code: "SC",
         groups: [
             { label: "Habilité motrice", colspan: 4, color: "#669999" }
         ],
@@ -4844,20 +4854,44 @@ async function loadTemplate(name) {
 }
 
 // ── Prépare les données du cycle courant ─────────────────────────────────────
+// ── Données communes à tous les modèles imprimables de l'onglet Cycle ─────────
+// Rassemble les informations partagées par CJ et OB : classe, niveau, année
+// scolaire, discipline active (titre + code). Toute info commune à ajouter
+// pour de futurs modèles doit être ajoutée ICI, pas dupliquée ailleurs.
+// @returns {Object} { CLASSE, NIVEAU, AS, DISCIPLINE, DISC_CODE }
+function _prepareCommonPrintData() {
+    const discTitle = OBSERVATION_DATA[currentDisc]?.title || currentDisc;
+    const discCode  = OBSERVATION_DATA[currentDisc]?.code || '';
+    const aujourdhui = new Date();
+    const annee = aujourdhui.getFullYear();
+    const AS = aujourdhui.getMonth() < 8 ? `${annee - 1}/${annee}` : `${annee}/${annee + 1}`;
+    const students = classesDB[currentClass]?.students || [];
+
+    return {
+        CLASSE:     currentClass,
+        NIVEAU:     getNiveauFromName(currentClass),
+        AS,
+        DISCIPLINE: discTitle,
+        DISC_CODE:  discCode,
+        TOTD:       students.filter(s => s.index === 'D').length,
+        TOTG:       students.filter(s => s.index === 'G').length,
+        TOTF:       students.filter(s => s.index === 'F').length,
+    };
+}
+
 function _prepareCycleData() {
     const cl = classesDB[currentClass];
     const students = cl.students || [];
     const dates = cl.cycleDates?.[currentDisc] || [];
     const nbrS = getNbrSeances();
-    const discTitle = OBSERVATION_DATA[currentDisc]?.title || currentDisc;
-    const aujourdhui = new Date();
-    const annee = aujourdhui.getFullYear();
-    const AS = aujourdhui.getMonth() < 8 ? `${annee - 1}/${annee}` : `${annee}/${annee + 1}`;
+    const commonData = _prepareCommonPrintData();
 
-    const seanceCols    = Array.from({length: nbrS}, () => '<col class="c-s">').join('');
+    // Colonnes pour les séances
+    const seanceCols = Array.from({length: nbrS}, () => '<col class="c-s">').join('');
     const seancesHeaders = Array.from({length: nbrS}, (_, i) =>
         `<th class="small-text">S${i+1}</th>`).join('');
 
+    // Ligne des dates
     const datesRow = Array.from({length: nbrS}, (_, i) => {
         const d = dates[i] || '';
         let fmt = '';
@@ -4865,30 +4899,46 @@ function _prepareCycleData() {
         return `<td class="small-text date-cell">${fmt}</td>`;
     }).join('');
 
+    // Cellules vides pour la ligne "Nom & Prénom" (sans les dates)
+    const emptySeanceCells = Array.from({length: nbrS}, () => '<td></td>').join('');
+
     const cv = (v) => (v !== undefined && v !== '') ? v : '';
+    
+    // Lignes des élèves
     const studentRows = students.map((s, i) => {
         const g = s.grades?.[currentDisc] || { s: [], c: [], f: '' };
         const seanceCells = Array.from({length: nbrS}, (_, j) =>
             `<td class="small-text">${g.s?.[j] || ''}</td>`).join('');
+        const groupe = s.groupe || '-';
         return `
         <tr>
             <td>${i + 1}</td>
             <td class="idx-cell">${s.index || '?'}</td>
             <td class="left-align nom-cell">${s.nom}</td>
+            <td class="grp-cell">${groupe}</td>
             ${seanceCells}
-            <td>${cv(g.c[0])}</td><td>${cv(g.c[1])}</td>
-            <td>${cv(g.c[2])}</td><td>${cv(g.c[3])}</td>
+            <td>${cv(g.c[0])}</td>
+            <td>${cv(g.c[1])}</td>
+            <td>${cv(g.c[2])}</td>
+            <td>${cv(g.c[3])}</td>
             <td><strong>${cv(g.f)}</strong></td>
         </tr>`;
     }).join('');
 
-    const seanceW = Math.floor((281 - 94) / (nbrS + 4));
-    const nomW    = 281 - 94 - (nbrS * seanceW);
+    // Ajustement des largeurs (soustraire 14mm pour la colonne Groupe)
+    const totalWidth = 281; // Largeur totale en mm (A4 paysage)
+    const fixedCols = 12 + 10 + 14; // N° + Sx + Grp
+    const evalCols = 4 * 14; // 4 colonnes d'évaluation (14mm chacune)
+    const nfCol = 16; // Note Finale
+    const remaining = totalWidth - fixedCols - evalCols - nfCol; // Reste pour Nom + Séances
+    
+    // Répartition proportionnelle
+    const nomMin = 60; // Largeur minimale pour le nom
+    const seanceW = Math.floor((remaining - nomMin) / (nbrS + 1));
+    const nomW = remaining - (nbrS * seanceW);
 
     return {
-        CLASSE:          currentClass,
-        DISCIPLINE:      discTitle,
-        AS,
+        ...commonData,
         NBR_S:           nbrS,
         NBR_S_MINUS_1:   nbrS - 1,
         COL_NOM_W:       nomW,
@@ -4896,15 +4946,395 @@ function _prepareCycleData() {
         SEANCE_COLS:     seanceCols,
         SEANCES_HEADERS: seancesHeaders,
         DATES_ROW:       datesRow,
+        EMPTY_SEANCE_CELLS: emptySeanceCells,
         STUDENT_ROWS:    studentRows,
     };
 }
 
-// ── Charge le template cycle, le remplit, le retourne ─────────────────────────
+// ── Chemins des templates de l'onglet Cycle ───────────────────────────────────
+// CJ (Cahier Journal) : modèle UNIQUE, réutilisé pour toutes les disciplines
+// (l'en-tête varie via les données injectées : DISCIPLINE, DISC_CODE, ...).
+const CYCLE_TEMPLATE_CJ = 'cycle/CJ/Cycle';
+
+// OB (Observation) : un template DISTINCT par discipline (à créer ultérieurement).
+// @param {string} discCode - code discipline (CD, CV, SH, SL, LP, BB, HB, VB, Gym, SC)
+// @returns {string} nom de template pour loadTemplate(), ex: 'cycle/OB/OBCD'
+function getCycleTemplateOB(discCode) {
+    return `cycle/OB/OB${discCode}`;
+}
+
+// ── Charge le template cycle (CJ), le remplit, le retourne ────────────────────
 async function buildCyclePage() {
-    const tpl  = await loadTemplate('cycle');
+    const tpl  = await loadTemplate(CYCLE_TEMPLATE_CJ);
     const data = _prepareCycleData();
     return fillTemplate(tpl, data);
+}
+
+// ── Sports collectifs (structure de grille différente des disciplines individuelles) ──
+// Reprend la même logique que celle déjà utilisée ailleurs dans l'app (export Excel, PPG).
+function isDisciplineSportCo(discKey) {
+    const d = (discKey || '').toUpperCase();
+    return d.includes('BASKET') || d.includes('HAND') || d.includes('VOLLEY') || d.includes('SPORT.CO');
+}
+
+// Nombre de lignes affichées par page pour les grilles OB individuelles,
+// complétées par des lignes vides au-delà de l'effectif réel — même principe
+// que PPG_LINES_PER_PAGE pour le modèle PPG. Réutilisé par toutes les
+// disciplines individuelles (CD, CV, SH, SL, LP...).
+// ── Nombre de lignes affichées par page pour les grilles OB ──
+const OB_LINES_PER_PAGE = 45;
+
+// ── Lignes élèves pour les disciplines INDIVIDUELLES ──────────────
+// CD, CV, SH, SL, LP → performances (p*) + comportement (c*)
+function _buildObsRowsIndividuelle(config, students, seanceCellsBlank) {
+    // Récupère les champs de données (sauf 'best' et les notes Nt...)
+    const dataFields = config.fields.filter(f => !f.startsWith('Nt') && f !== 'best');
+    
+    // Séparer les performances (p*) des critères comportementaux (c*)
+    const perfFields = dataFields.filter(f => f.startsWith('p'));
+    const compFields = dataFields.filter(f => f.startsWith('c'));
+    
+    const rows = students.map((s, i) => {
+        const obsData = s.grades?.[currentDisc]?.obs || {};
+        
+        // Cellules pour les performances
+        const perfCells = perfFields.map(f => `<td>${obsData[f] || ''}</td>`).join('');
+        
+        // Cellules pour les critères comportementaux
+        const compCells = compFields.map(f => `<td>${obsData[f] || ''}</td>`).join('');
+        
+        // Colonnes fixes
+        const num = i + 1;
+        const nom = s.nom || '';
+        const sx = s.index || '?';
+        const grp = s.groupe || '-';
+        const grpPhysio = s.ppg?.grpPhysio || '';
+        const connConc = s.grades?.[currentDisc]?.c?.[1] !== undefined && s.grades?.[currentDisc]?.c?.[1] !== '' 
+            ? s.grades[currentDisc].c[1] 
+            : '';
+
+        return `
+        <tr>
+            <td>${num}</td>
+            <td class="left-align nom-cell">${nom}</td>
+            <td>${sx}</td>
+            <td>${grp}</td>
+            <td>${grpPhysio}</td>
+            <td>${connConc}</td>
+            ${perfCells}
+            ${compCells}
+            ${seanceCellsBlank}
+        </tr>`;
+    });
+
+    // Compléter avec des lignes vides jusqu'à OB_LINES_PER_PAGE
+    const currentCount = students.length;
+    const perfCount = perfFields.length;
+    const compCount = compFields.length;
+    
+    if (currentCount < OB_LINES_PER_PAGE) {
+        for (let i = currentCount; i < OB_LINES_PER_PAGE; i++) {
+            const perfCellsEmpty = Array(perfCount).fill('<td></td>').join('');
+            const compCellsEmpty = Array(compCount).fill('<td></td>').join('');
+            rows.push(`
+            <tr class="empty-row">
+                <td>${i + 1}</td>
+                <td class="left-align nom-cell"></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                ${perfCellsEmpty}
+                ${compCellsEmpty}
+                ${seanceCellsBlank}
+            </tr>`);
+        }
+    }
+
+    return rows.join('');
+}
+
+// ── Lignes élèves pour les SPORTS COLLECTIFS ─────────────────────
+// BB, HB, VB, Sport.Co → uniquement des critères comportementaux (c*)
+function _buildObsRowsSportCo(config, students, seanceCellsBlank) {
+    // Récupère les champs de comportement (c1, c2, c3, c4)
+    const compFields = config.fields.filter(f => f.startsWith('c'));
+    
+    const rows = students.map((s, i) => {
+        const obsData = s.grades?.[currentDisc]?.obs || {};
+        const compCells = compFields.map(f => `<td>${obsData[f] || ''}</td>`).join('');
+        
+        const num = i + 1;
+        const nom = s.nom || '';
+        const sx = s.index || '?';
+        const grp = s.groupe || '-';
+        const grpPhysio = s.ppg?.grpPhysio || '';
+        const connConc = s.grades?.[currentDisc]?.c?.[1] !== undefined && s.grades?.[currentDisc]?.c?.[1] !== '' 
+            ? s.grades[currentDisc].c[1] 
+            : '';
+
+        return `
+        <tr>
+            <td>${num}</td>
+            <td class="left-align nom-cell">${nom}</td>
+            <td>${sx}</td>
+            <td>${grp}</td>
+            <td>${grpPhysio}</td>
+            <td>${connConc}</td>
+            ${compCells}
+            ${seanceCellsBlank}
+        </tr>`;
+    });
+    
+    // Compléter avec des lignes vides jusqu'à OB_LINES_PER_PAGE
+    const currentCount = students.length;
+    const compCount = compFields.length;
+    
+    if (currentCount < OB_LINES_PER_PAGE) {
+        for (let i = currentCount; i < OB_LINES_PER_PAGE; i++) {
+            const compCellsEmpty = Array(compCount).fill('<td></td>').join('');
+            rows.push(`
+            <tr class="empty-row">
+                <td>${i + 1}</td>
+                <td class="left-align nom-cell"></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                ${compCellsEmpty}
+                ${seanceCellsBlank}
+            </tr>`);
+        }
+    }
+    
+    return rows.join('');
+}
+
+// ── Lignes élèves pour la GYMNASTIQUE ────────────────────────────
+// Gymnastique : 3 performances (Diff. A, B, C) + 2 critères (Composition, Exécution)
+function _buildObsRowsGymnastique(config, students, seanceCellsBlank) {
+    // Récupère les champs de données
+    const dataFields = config.fields.filter(f => !f.startsWith('Nt') && f !== 'best');
+    
+    // Séparer les performances (p*) des critères comportementaux (c*)
+    const perfFields = dataFields.filter(f => f.startsWith('p'));
+    const compFields = dataFields.filter(f => f.startsWith('c'));
+    
+    const rows = students.map((s, i) => {
+        const obsData = s.grades?.[currentDisc]?.obs || {};
+        
+        // Cellules pour les performances (Diff. A, B, C)
+        const perfCells = perfFields.map(f => `<td>${obsData[f] || ''}</td>`).join('');
+        
+        // Cellules pour les critères comportementaux (Composition, Exécution)
+        const compCells = compFields.map(f => `<td>${obsData[f] || ''}</td>`).join('');
+        
+        const num = i + 1;
+        const nom = s.nom || '';
+        const sx = s.index || '?';
+        const grp = s.groupe || '-';
+        const grpPhysio = s.ppg?.grpPhysio || '';
+        const connConc = s.grades?.[currentDisc]?.c?.[1] !== undefined && s.grades?.[currentDisc]?.c?.[1] !== '' 
+            ? s.grades[currentDisc].c[1] 
+            : '';
+
+        return `
+        <tr>
+            <td>${num}</td>
+            <td class="left-align nom-cell">${nom}</td>
+            <td>${sx}</td>
+            <td>${grp}</td>
+            <td>${grpPhysio}</td>
+            <td>${connConc}</td>
+            ${perfCells}
+            ${compCells}
+            ${seanceCellsBlank}
+        </tr>`;
+    });
+
+    // Compléter avec des lignes vides jusqu'à OB_LINES_PER_PAGE
+    const currentCount = students.length;
+    const perfCount = perfFields.length;
+    const compCount = compFields.length;
+    
+    if (currentCount < OB_LINES_PER_PAGE) {
+        for (let i = currentCount; i < OB_LINES_PER_PAGE; i++) {
+            const perfCellsEmpty = Array(perfCount).fill('<td></td>').join('');
+            const compCellsEmpty = Array(compCount).fill('<td></td>').join('');
+            rows.push(`
+            <tr class="empty-row">
+                <td>${i + 1}</td>
+                <td class="left-align nom-cell"></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                ${perfCellsEmpty}
+                ${compCellsEmpty}
+                ${seanceCellsBlank}
+            </tr>`);
+        }
+    }
+
+    return rows.join('');
+}
+
+// ── Données spécifiques au modèle OB (fiche d'observation) ──────
+function _prepareObservationData() {
+    const config = OBSERVATION_DATA[currentDisc];
+    if (!config) {
+        throw new Error(`Grille d'observation non configurée pour "${currentDisc}".`);
+    }
+
+    const students = classesDB[currentClass]?.students || [];
+    const nbrS = getNbrSeances();
+    
+    // ============================================================
+    // PARTIE SÉANCES (droite)
+    // ============================================================
+    const seanceCellsBlank = Array.from({length: nbrS}, () => '<td></td>').join('');
+    const seancesHeaders = Array.from({length: nbrS}, (_, i) =>
+        `<th class="small-text">S${i+1}</th>`
+    ).join('');
+    const seancesHeadersEmpty = Array.from({length: nbrS}, () =>
+        `<td></td>`
+    ).join('');
+
+    // ============================================================
+    // PARTIE VARIABLE (centre) - selon la discipline
+    // ============================================================
+    const dataFields = config.fields.filter(f => !f.startsWith('Nt') && f !== 'best');
+    const perfFields = dataFields.filter(f => f.startsWith('p'));
+    const compFields = dataFields.filter(f => f.startsWith('c'));
+    
+    const perfCount = perfFields.length;
+    const compCount = compFields.length;
+    const totalVarCols = perfCount + compCount;
+
+    // --- COLGROUP_VARIABLE ---
+    let colgroupVariable = '';
+    for (let i = 0; i < totalVarCols; i++) {
+        colgroupVariable += `<col style="width:6%;">`;
+    }
+
+    // --- VARIABLE_HEADER_MAIN (Ligne 1) ---
+    // Disciplines avec colonnes "performance" (CD, CV, SH, SL, LP, Gym) : groupe(s)
+    // "Performances" + "Comportement moteur". Sports collectifs (BB, HB, VB, SC),
+    // qui n'ont que des critères comportementaux : un seul groupe "Habilité motrice"
+    // (reprend le libellé déjà utilisé dans la grille de saisie à l'écran).
+    let variableHeaderMain = '';
+    if (perfCount > 0) {
+        variableHeaderMain += `<th colspan="${perfCount}" style="height:10px;">Performances</th>`;
+        if (compCount > 0) {
+            variableHeaderMain += `<th colspan="${compCount}" style="height:10px;">Comportement moteur</th>`;
+        }
+    } else if (compCount > 0) {
+        variableHeaderMain += `<th colspan="${compCount}" style="height:10px;">Habilité motrice</th>`;
+    }
+
+    // --- VARIABLE_HEADER_SUB (Ligne 2 - sous-entêtes verticaux) ---
+    let variableHeaderSub = '';
+    const perfLabels = perfFields.map(f => {
+        const labelMap = {
+            'p1': 'Perf. 1', 'p2': 'Perf. 2', 'p3': 'Perf. 3',
+            'p4': 'Perf. 4', 'p5': 'Perf. 5'
+        };
+        return labelMap[f] || f.toUpperCase();
+    });
+    const compLabels = compFields.map(f => {
+        const labelMap = {
+            'c1': getCompLabel(1, config.code),
+            'c2': getCompLabel(2, config.code),
+            'c3': getCompLabel(3, config.code),
+            'c4': getCompLabel(4, config.code)
+        };
+        return labelMap[f] || f.toUpperCase();
+    });
+
+    const allLabels = [...perfLabels, ...compLabels];
+    variableHeaderSub = allLabels.map(label =>
+        `<th class="vertical-text" rowspan="2" style="height:96.5px;">${label}</th>`
+    ).join('');
+
+    // --- VARIABLE_HEADER_EMPTY (Ligne 3 - cellules vides fusionnées) ---
+    let variableHeaderEmpty = '';
+    if (perfCount > 0) {
+        variableHeaderEmpty += `<th colspan="${perfCount}"></th>`;
+    }
+    if (compCount > 0) {
+        variableHeaderEmpty += `<th colspan="${compCount}"></th>`;
+    }
+
+    // ============================================================
+    // LIGNES ÉLÈVES
+    // ============================================================
+    const discKey = currentDisc;
+    const d = discKey.toUpperCase();
+    
+    let obsRows;
+    if (d.includes('BASKET') || d.includes('HAND') || d.includes('VOLLEY') || d.includes('SPORT.CO')) {
+        obsRows = _buildObsRowsSportCo(config, students, seanceCellsBlank);
+    } else if (d.includes('GYMNASTIQUE') || d.includes('GYM')) {
+        obsRows = _buildObsRowsGymnastique(config, students, seanceCellsBlank);
+    } else {
+        obsRows = _buildObsRowsIndividuelle(config, students, seanceCellsBlank);
+    }
+
+    return {
+        ..._prepareCommonPrintData(),
+        NBR_S: nbrS,
+        COLGROUP_VARIABLE: colgroupVariable,
+        VARIABLE_HEADER_MAIN: variableHeaderMain,
+        VARIABLE_HEADER_SUB: variableHeaderSub,
+        VARIABLE_HEADER_EMPTY: variableHeaderEmpty,
+        SEANCE_HEADERS: seancesHeaders,
+        SEANCE_HEADERS_EMPTY: seancesHeadersEmpty,
+        OBS_ROWS: obsRows,
+    };
+}
+
+// Fonction helper pour les libellés des critères comportementaux
+// @param {number} index - 1 à 4
+// @param {string} discCode - code discipline (CV, SH, SL, LP, BB, HB, VB, Gym, SC)
+function getCompLabel(index, discCode) {
+    const labels = {
+        'CV': { 1: 'Installation', 2: 'Départ', 3: 'Redressement', 4: 'Couloir' },
+        'SH': { 1: 'Course d\'élan', 2: 'Appel', 3: 'Franchissement', 4: 'Réception' },
+        'SL': { 1: 'Course d\'élan', 2: 'Appel', 3: 'Envol', 4: 'Réception' },
+        'LP': { 1: 'Tenue de l\'engin', 2: 'Élan', 3: 'Angle de lancer', 4: 'Exploit. cercle' },
+        'BB': { 1: 'Déplacement', 2: 'Passes', 3: 'Dribble', 4: 'Adresse' },
+        'HB': { 1: 'Déplacement', 2: 'Passes', 3: 'Dribble', 4: 'Tirs' },
+        'VB': { 1: 'Réception', 2: 'Passes', 3: 'Attaque', 4: 'Service' },
+        'Gym': { 1: 'Composition', 2: 'Exécution' },
+        'SC': { 1: 'Element 1', 2: 'Element 2', 3: 'Element 3', 4: 'Element 4' },
+    };
+    const discLabels = labels[discCode] || {};
+    return discLabels[index] || `Critère ${index}`;
+}
+// ── Fonction d'aiguillage : construit la page OB de la discipline active ──────
+// Collecte les données communes + spécifiques, choisit le bon template selon
+// la discipline active (via son code), le charge et le remplit.
+// @returns {Promise<string>} HTML complet prêt pour printAsPDF()
+async function buildCycleObservationPage() {
+    if (!currentClass || !currentDisc) {
+        throw new Error("Sélectionnez d'abord une classe et une discipline.");
+    }
+    const discCode = OBSERVATION_DATA[currentDisc]?.code;
+    if (!discCode) {
+        throw new Error(`Aucun code discipline défini pour "${currentDisc}".`);
+    }
+
+    const tplName = getCycleTemplateOB(discCode);
+    const tpl  = await loadTemplate(tplName);
+    const data = _prepareObservationData();
+    return fillTemplate(tpl, data);
+}
+
+// ── Impression du modèle OB (grille d'observation) en PDF ─────────────────────
+function printCycleObservation() {
+    buildCycleObservationPage()
+        .then(html => printAsPDF(html))
+        .catch(e => alert("Erreur chargement modèle d'observation : " + e.message));
 }
 
 /**
@@ -6694,6 +7124,9 @@ function printPage() {
     if (activeSection === 'sec-cycle') {
         if (!currentClass || !currentDisc) { alert("Sélectionnez d'abord une classe et une discipline."); return; }
         buildCyclePage().then(html => printAsPDF(html)).catch(e => alert("Erreur chargement template cycle : " + e.message));
+    }
+    else if (activeSection === 'sec-obs') {
+        printCycleObservation();
     }
     else if (activeSection === 'sec-stats') {
         printAsPDF(buildStatsPage());
