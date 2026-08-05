@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.017</title>
+    <title>SmartEPS v2.018'2</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -5218,13 +5218,18 @@ function _prepareObservationData() {
     }
 
     // --- VARIABLE_HEADER_MAIN (Ligne 1) ---
-    // Disciplines avec colonnes "performance" (CD, CV, SH, SL, LP, Gym) : groupe(s)
+    // Disciplines avec colonnes "performance" (CD, CV, SH, SL, LP) : groupe(s)
     // "Performances" + "Comportement moteur". Sports collectifs (BB, HB, VB, SC),
     // qui n'ont que des critères comportementaux : un seul groupe "Habilité motrice"
     // (reprend le libellé déjà utilisé dans la grille de saisie à l'écran).
+    // Cas particulier GYM : bien qu'individuelle, ses colonnes "performance"
+    // (Diff. A/B/C) s'appellent aussi "Habilité motrice" sur la fiche imprimée
+    // (comme les sports collectifs), pas "Performances".
+    const perfGroupLabel = (config.code === 'Gym') ? 'Habilité motrice' : 'Performances';
+
     let variableHeaderMain = '';
     if (perfCount > 0) {
-        variableHeaderMain += `<th colspan="${perfCount}" style="height:10px;">Performances</th>`;
+        variableHeaderMain += `<th colspan="${perfCount}" style="height:10px;">${perfGroupLabel}</th>`;
         if (compCount > 0) {
             variableHeaderMain += `<th colspan="${compCount}" style="height:10px;">Comportement moteur</th>`;
         }
@@ -5234,13 +5239,7 @@ function _prepareObservationData() {
 
     // --- VARIABLE_HEADER_SUB (Ligne 2 - sous-entêtes verticaux) ---
     let variableHeaderSub = '';
-    const perfLabels = perfFields.map(f => {
-        const labelMap = {
-            'p1': 'Perf. 1', 'p2': 'Perf. 2', 'p3': 'Perf. 3',
-            'p4': 'Perf. 4', 'p5': 'Perf. 5'
-        };
-        return labelMap[f] || f.toUpperCase();
-    });
+    const perfLabels = perfFields.map((f, idx) => getPerfLabel(idx + 1, config.code));
     const compLabels = compFields.map(f => {
         const labelMap = {
             'c1': getCompLabel(1, config.code),
@@ -5291,6 +5290,18 @@ function _prepareObservationData() {
         SEANCE_HEADERS_EMPTY: seancesHeadersEmpty,
         OBS_ROWS: obsRows,
     };
+}
+
+// Fonction helper pour les libellés des colonnes "performance" (par défaut
+// "Perf. N", sauf exception propre à une discipline comme la Gym).
+// @param {number} index - 1, 2, 3...
+// @param {string} discCode - code discipline (CD, CV, SH, SL, LP, Gym...)
+function getPerfLabel(index, discCode) {
+    if (discCode === 'Gym') {
+        const gymLabels = { 1: 'Diff. A', 2: 'Diff. B', 3: 'Diff. C' };
+        return gymLabels[index] || `Perf. ${index}`;
+    }
+    return `Perf. ${index}`;
 }
 
 // Fonction helper pour les libellés des critères comportementaux
