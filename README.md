@@ -174,3 +174,6 @@
 
 2.017	:
 	*tableau imprimable (cahier d'observation) (except Gym)
+
+2.018	:
+	*tableau imprimable (cahier d'observation Gym)
