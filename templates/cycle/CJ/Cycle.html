@@ -8,13 +8,13 @@
         * { box-sizing: border-box; }
         body { font-family: 'Tahoma', 'Calibri', sans-serif; font-size: 9pt; color: black; margin: 0; }
         table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-        col.c-no   { width: 12mm; }
-        col.c-sx   { width: 10mm; }
-        col.c-nom  { width: {{COL_NOM_W}}mm; }
-        col.c-grp  { width: 14mm; }
+        col.c-no   { width: 18px; }
+        col.c-sx   { width: 16px; }
+        col.c-nom  { width: 150px; }
+        col.c-grp  { width: 16px; }
         col.c-s    { width: {{COL_S_W}}mm; }
-        col.c-eval { width: 14mm; }
-        col.c-nf   { width: 16mm; }
+        col.c-eval { width: 35px; }
+        col.c-nf   { width: 38px; }
         th, td { border: 1px solid black; padding: 1px 2px; text-align: center;
                  vertical-align: middle; overflow: hidden; white-space: nowrap; }
         .left-align  { text-align: left; padding-left: 3px; }
@@ -65,13 +65,13 @@
         <td colspan="3">{{AS}}</td>
     </tr>
     <tr class="header-row">
-        <th rowspan="4">N°</th>
-        <th rowspan="4">Sx</th>
-        <th rowspan="2">{{CLASSE}}</th>
-        <th rowspan="4">Grp</th>
+        <th rowspan="4" style="font-size: 10px;">N°</th>
+        <th rowspan="4" style="font-size: 10px;">Sx</th>
+        <th rowspan="2" style="font-size: 10px;">{{CLASSE}}</th>
+        <th rowspan="4" class="vertical-text" style="font-size: 10px;">Grp</th>
         <th colspan="{{NBR_S}}">Contrôle d'assiduité</th>
         <th colspan="4">Evaluation</th>
-        <th rowspan="4">Note<br>Finale</th>
+        <th rowspan="4" class="vertical-text">Note Finale</th>
     </tr>
     <tr class="header-row">
         {{SEANCES_HEADERS}}
