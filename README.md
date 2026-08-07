@@ -177,3 +177,7 @@
 
 2.018	:
 	*tableau imprimable (cahier d'observation Gym)
+
+2.019	:
+	*quelques mise en page mineurs pour l'impression
+	*Cycle SportCo paramétrable
