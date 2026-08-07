@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Cycle {{DISCIPLINE}} à {{CLASSE}}</title>
+    <title>Cycle {{APS_NAME}} a {{CLASSE}}</title>
     <style>
         @page { size: A4; margin: 5mm; }
         * { box-sizing: border-box; }
@@ -34,7 +34,7 @@
             height: 5mm;
         }
         
-        /* Élèves : hauteur fixe */
+        /* élèves : hauteur fixe */
         tr.student-row {
             height: {{ROW_HEIGHT}}mm;
             line-height: 1.2;
@@ -60,7 +60,7 @@
     </colgroup>
     <tr>
         <td colspan="4" class="right-align"><strong>Cycle :</strong></td>
-        <td colspan="{{NBR_S}}">{{DISCIPLINE}}</td>
+        <td colspan="{{NBR_S}}">{{APS_NAME}}</td>
         <td colspan="2" class="right-align"><strong>AS :</strong></td>
         <td colspan="3">{{AS}}</td>
     </tr>
@@ -92,5 +92,11 @@
     </tr>
     {{STUDENT_ROWS}}
 </table>
+
+<div style="display: flex; justify-content: space-between; font-size: 8px; color: #888; margin-top: 4px;">
+  <p style="margin: 0;">SmartEPS_2026.</p>
+  <p style="margin: 0;">©Taoufik_2026.</p>
+</div>
+
 </body>
 </html>
