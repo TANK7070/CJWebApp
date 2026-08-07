@@ -2,12 +2,14 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>SmartEPS v2.018'2</title>
+    <title>SmartEPS v2.019</title>
 	<link rel="icon" href="https://taoufikeps.wordpress.com/wp-content/uploads/2015/06/tb_rond_3d.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         :root {
@@ -835,11 +837,12 @@ body.dark-mode #seance-context-menu .menu-item-seance:hover {
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                 <button type="button" id="btnStats" style="background-color: #698c8f; color: white;" onclick="showTab('stats')">📊 Statistiques</button>
                 <button type="button" id="AjtPNom" style="background-color: var(--main-color1); color: white;" onclick="_ppgForceClassFilter = null; showTab('PPG');">🧬 PPG</button>
+                <button type="button" id="SprtCo" style="background-color: #34495e; color: white;" onclick="showTab('sprtCo')">⚽ APS additionnel</button>
                 <button type="button" id="SupprPNom" style="background-color: #e74c3c; color: white;">🗑️ Supprimer Nom/Prénom</button>
                 <button type="button" id="Aprc" style="background-color: #2ecc71; color: white;" onclick="showTab('appreciation')">👁️ Aperçu Appréciation</button>
                 <button type="button" id="CapSprt" style="background-color: #f39c12; color: white;">🏃‍♂️ ParamCapSprtv</button>
                 <button type="button" id="PPCT" style="background-color: #9b59b6; color: white;">📁 ProjPrev (PPCT)</button>
-                <button type="button" id="SprtCo" style="background-color: #34495e; color: white;">⚽ Sport Co</button>
+                
                 <button type="button" id="ASS" style="background-color: #16a085; color: white;">📋 Liste ASS</button>
             </div>
 
@@ -1251,6 +1254,62 @@ function initGroupVisibility() {
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
                 
             </div>
+    </div>
+</div>
+<div class="section" id="sec-sprtCo">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+        <h2 style="color:var(--main-color1); margin-bottom:2px">⚙️ Configuration APS additionnelle</h2>
+        <button class="btn-retour" onclick="showTab('settings')">⬅ Retour</button>
+    </div>
+    
+    <div id="sprtCo-content" style="padding: 5px; max-height: 75vh; overflow-y: auto;">
+        <fieldset style="padding:15px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+            <legend style="padding:0 10px; font-weight:bold; color:var(--main-color1);">⚽ Cycle de sport collectif additionnel</legend>
+            
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px; font-style: italic;">
+                Indiquez le nom de l'APS et les éléments observables des habiletés motrices. L'application mettra à jour automatiquement le cycle SportCo.
+            </p>
+
+            <div class="table-container">
+                <table style="width:100%; min-width:100%;">
+                    <tbody>
+                        <tr>
+                            <td><b style="font-size:15px;">APS:</b></td>
+                            <td><input type="text" id="sCo-aps" value="Sport. Co" oninput="saveElementSprtCo()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; background:#f9fff9;"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="table-container">
+                <p style="font-size: 15px; color: #888; margin-bottom: 15px; font-weight:bold; text-align: center">Liste des éléments observables:</p>
+                <table style="width:100%; min-width:100%; margin-top: 15px;">
+                    <tbody>
+                        <tr>
+                            <td><b style="font-size:14px;">Elément 1:</b></td>
+                            <td><input type="text" id="sCo-elmnt1" value="Déplacement" oninput="saveElementSprtCo()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;"></td>
+                        </tr>
+                        <tr>
+                            <td><b style="font-size:14px;">Elément 2:</b></td>
+                            <td><input type="text" id="sCo-elmnt2" value="Passe" oninput="saveElementSprtCo()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;"></td>
+                        </tr>
+                        <tr>
+                            <td><b style="font-size:14px;">Elément 3:</b></td>
+                            <td><input type="text" id="sCo-elmnt3" value="Tir" oninput="saveElementSprtCo()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;"></td>
+                        </tr>
+                        <tr>
+                            <td><b style="font-size:14px;">Elément 4:</b></td>
+                            <td><input type="text" id="sCo-elmnt4" value="Anticip. Angl" oninput="saveElementSprtCo()" style="text-align: left; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px;"></td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
+                <button type="button" style="background-color: #34495e; color: white; padding: 6px 20px;" onclick="resetElementSprtCoDefaults()">🔄 Réinitialiser les textes</button>
+                <button type="button" style="background-color: #27ae60; color: white; padding: 6px 20px; margin-left: 10px;" onclick="saveElementSprtCo(false); showTab('settings')">✅ Valider</button>
+            </div>
+        </fieldset>
     </div>
 </div>
 <div id="context-menu">
@@ -1768,14 +1827,23 @@ function openClass(name) {
             <th class="col-nom" style="background: var(--main-color2);">Nom & Prénom</th>
             <th style="width: 8px;">Sx</th>
             <th style="width: 8px; background-color: #95a5a6; color: white;">Grp</th>
-            ${disciplines.map(disc => `
-                <th style="background-color: ${couleurs[disc] || '#6c5ce7'}; cursor:pointer;"
-                    onclick="openCycle('${disc}')"
-                    oncontextmenu="showCycleContextMenu(event, '${disc}')"
-                    title="Clic gauche = ouvrir, Clic droit = options">
-                    ${abbrMap[disc] || disc.substring(0,2)}
-                </th>
-            `).join('')}
+            ${disciplines.map(disc => {
+                let displayAbbr = abbrMap[disc] || disc.substring(0,2);
+                // Si c'est Sport.Co, afficher l'abréviation personnalisée
+                if (disc === 'Sport.Co') {
+                    const apsName = appSettings.sprtCo?.aps || SPRTCO_DEFAULTS.aps;
+                    // Afficher les 2 premières lettres de l'APS personnalisé (ou "SC" si trop court)
+                    displayAbbr = apsName.length >= 2 ? apsName.substring(0,2).toUpperCase() : 'SC';
+                }
+                return `
+                    <th style="background-color: ${couleurs[disc] || '#6c5ce7'}; cursor:pointer;"
+                        onclick="openCycle('${disc}')"
+                        oncontextmenu="showCycleContextMenu(event, '${disc}')"
+                        title="Clic gauche = ouvrir, Clic droit = options">
+                        ${displayAbbr}
+                    </th>
+                `;
+            }).join('')}
             <th style="background-color: var(--main-color2)">Moy. Gnrl.</th>
             <th style="background-color: var(--main-color2)">Appréciation</th>
         </tr>
@@ -2494,7 +2562,13 @@ function _resizeArray(arr, size, fill = "") {
 function openCycle(disc) {
     currentDisc = disc;
     const cl = classesDB[currentClass];
-    document.getElementById("cycle-title").innerText = `${currentClass} - ${disc}`;
+    // Si la discipline est Sport.Co, afficher le nom personnalisé
+    let displayName = disc;
+    if (disc === 'Sport.Co') {
+        const apsName = appSettings.sprtCo?.aps || SPRTCO_DEFAULTS.aps;
+        displayName = `${apsName}`;
+    }
+    document.getElementById("cycle-title").innerText = `${currentClass} - ${displayName}`;
 
     const nbrSeances = getNbrSeances();
 
@@ -2651,6 +2725,16 @@ function loadSettingsToUI() {
     
     // Initialiser la visibilité des groupes
     initGroupVisibility();
+
+    // Charger la config APS additionnel (Sport.Co personnalisable) et l'appliquer
+    // à OBSERVATION_DATA pour que la grille Observation affiche les bons libellés.
+    const sCoCfg = appSettings.sprtCo || SPRTCO_DEFAULTS;
+    const sCoInputs = { 'sCo-aps': 'aps', 'sCo-elmnt1': 'e1', 'sCo-elmnt2': 'e2', 'sCo-elmnt3': 'e3', 'sCo-elmnt4': 'e4' };
+    Object.entries(sCoInputs).forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = sCoCfg[key] || SPRTCO_DEFAULTS[key];
+    });
+    _applySprtCoConfig();
 }
 
 // Met à jour le badge "🧑🏼‍🏫" du header avec le nom du professeur actif
@@ -4825,6 +4909,77 @@ function printAsPDF(html) {
     };
 }
 
+// ── Génère un PDF téléchargeable (une seule page A4) à partir d'un HTML ───────
+// Contrairement à printAsPDF() (qui passe par la boîte de dialogue d'impression
+// native — peu fiable sur certains téléphones, où le rendu déborde parfois sur
+// une 2e page selon les marges/polices du navigateur), cette fonction capture
+// le rendu réel et le redimensionne pour qu'il tienne systématiquement sur UNE
+// page A4, puis déclenche le téléchargement direct du fichier (pas de dialogue
+// d'impression). Réservée aux fiches conçues pour tenir sur une page (Cycle CJ,
+// Observation OB) grâce à OB_LINES_PER_PAGE.
+// @param {string} html     - HTML complet de la fiche (comme pour printAsPDF)
+// @param {string} filename - nom du fichier, SANS extension
+async function downloadGridAsPDF(html, filename) {
+    let iframe = document.getElementById('pdf-capture-iframe');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'pdf-capture-iframe';
+        iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1200px;height:1600px;border:none;';
+        document.body.appendChild(iframe);
+    }
+
+    await new Promise((resolve) => {
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+        iframe.onload = resolve;
+        setTimeout(resolve, 500); // filet de sécurité si onload ne se déclenche pas
+    });
+
+    const body = iframe.contentDocument.body;
+    const canvas = await html2canvas(body, {
+        scale: 2,           // meilleure définition
+        useCORS: true,      // autorise les icônes de discipline (wordpress) dans la capture
+        backgroundColor: '#ffffff',
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+
+    // Redimensionne l'image capturée pour qu'elle tienne toujours sur UNE page,
+    // quelle que soit la hauteur réelle du rendu (variable selon l'appareil).
+    const imgRatio = canvas.width / canvas.height;
+    let imgW = pageW;
+    let imgH = imgW / imgRatio;
+    if (imgH > pageH) {
+        imgH = pageH;
+        imgW = imgH * imgRatio;
+    }
+    const marginX = (pageW - imgW) / 2;
+    const marginY = (pageH - imgH) / 2;
+
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', marginX, marginY, imgW, imgH);
+    pdf.save(`${filename}.pdf`);
+
+    document.body.removeChild(iframe);
+}
+
+// ── Construit le nom de fichier standard "Classe_Section_Discipline.pdf" ──────
+// @param {string} sectionLabel - "Cycle", "Observation", ...
+// @returns {string} nom de fichier SANS extension, nettoyé (emoji retirés,
+//                    espaces remplacés par des tirets).
+function buildPrintFilename(sectionLabel) {
+    const discTitle = OBSERVATION_DATA[currentDisc]?.title?.replace(/^Observation\s*-\s*/, '') || currentDisc || '';
+    const clean = (s) => (s || '')
+        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '') // emoji
+        .trim()
+        .replace(/\s+/g, '-');
+    return `${clean(currentClass)}_${clean(sectionLabel)}_${clean(discTitle)}`;
+}
+
 /**
  * Construit le HTML de la fiche cycle pour la classe/discipline active.
  * @returns {string} HTML complet prêt à imprimer
@@ -4867,12 +5022,21 @@ function _prepareCommonPrintData() {
     const AS = aujourdhui.getMonth() < 8 ? `${annee - 1}/${annee}` : `${annee}/${annee + 1}`;
     const students = classesDB[currentClass]?.students || [];
 
+    // Nom du cycle à afficher dans l'entête ("Cycle :") des fiches imprimées.
+    // Pour Sport.Co, l'APS est personnalisable (onglet Settings > APS
+    // additionnel) : on affiche le nom choisi (ex. "Tchoukball") plutôt que
+    // le libellé générique "Sport.Co".
+    const apsName = (discCode === 'SC')
+        ? (appSettings.sprtCo?.aps || SPRTCO_DEFAULTS.aps)
+        : discTitle.replace(/^Observation\s*-\s*/, '');
+
     return {
         CLASSE:     currentClass,
         NIVEAU:     getNiveauFromName(currentClass),
         AS,
         DISCIPLINE: discTitle,
         DISC_CODE:  discCode,
+        APS_NAME:   apsName,
         TOTD:       students.filter(s => s.index === 'D').length,
         TOTG:       students.filter(s => s.index === 'G').length,
         TOTF:       students.filter(s => s.index === 'F').length,
@@ -5292,6 +5456,55 @@ function _prepareObservationData() {
     };
 }
 
+// ── APS additionnel (Sport.Co personnalisable) ─────────────────────────────
+// Valeurs par défaut (reprises des champs de l'onglet Settings > APS additionnel)
+const SPRTCO_DEFAULTS = { aps: 'Sport. Co', e1: 'Déplacement', e2: 'Passe', e3: 'Tir', e4: 'Anticip. Angl' };
+
+// Applique la config Sport.Co (sauvegardée ou par défaut) à OBSERVATION_DATA,
+// pour que la grille Observation à l'écran (renderObservationGrid, qui lit
+// config.headers) affiche les libellés personnalisés. À appeler au démarrage
+// et à chaque sauvegarde de la config.
+function _applySprtCoConfig() {
+    const cfg = appSettings.sprtCo || SPRTCO_DEFAULTS;
+    const config = OBSERVATION_DATA['Sport.Co'];
+    if (!config) return;
+    config.headers[0] = cfg.e1 || SPRTCO_DEFAULTS.e1;
+    config.headers[1] = cfg.e2 || SPRTCO_DEFAULTS.e2;
+    config.headers[2] = cfg.e3 || SPRTCO_DEFAULTS.e3;
+    config.headers[3] = cfg.e4 || SPRTCO_DEFAULTS.e4;
+}
+
+// Sauvegarde les 4 éléments (+ nom de l'APS) saisis dans l'onglet Settings,
+// et met à jour immédiatement la grille Observation à l'écran.
+// @param {boolean} [showAlert] - si true, confirme par une alerte (aucun
+//   appel actuel ne le fait : la saisie live (oninput) et le bouton Valider
+//   restent silencieux).
+function saveElementSprtCo(showAlert) {
+    appSettings.sprtCo = {
+        aps: document.getElementById('sCo-aps')?.value.trim() || SPRTCO_DEFAULTS.aps,
+        e1:  document.getElementById('sCo-elmnt1')?.value.trim() || SPRTCO_DEFAULTS.e1,
+        e2:  document.getElementById('sCo-elmnt2')?.value.trim() || SPRTCO_DEFAULTS.e2,
+        e3:  document.getElementById('sCo-elmnt3')?.value.trim() || SPRTCO_DEFAULTS.e3,
+        e4:  document.getElementById('sCo-elmnt4')?.value.trim() || SPRTCO_DEFAULTS.e4,
+    };
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
+    _applySprtCoConfig();
+    if (currentDisc === 'Sport.Co' && document.getElementById('sec-obs')?.classList.contains('active')) {
+        renderObservationGrid();
+    }
+    if (showAlert) alert("✅ Configuration de l'APS additionnel enregistrée.");
+}
+
+// Réinitialise les 4 éléments (+ nom de l'APS) aux valeurs par défaut.
+function resetElementSprtCoDefaults() {
+    const ids = { 'sCo-aps': 'aps', 'sCo-elmnt1': 'e1', 'sCo-elmnt2': 'e2', 'sCo-elmnt3': 'e3', 'sCo-elmnt4': 'e4' };
+    Object.entries(ids).forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = SPRTCO_DEFAULTS[key];
+    });
+    saveElementSprtCo();
+}
+
 // Fonction helper pour les libellés des colonnes "performance" (par défaut
 // "Perf. N", sauf exception propre à une discipline comme la Gym).
 // @param {number} index - 1, 2, 3...
@@ -5308,6 +5521,13 @@ function getPerfLabel(index, discCode) {
 // @param {number} index - 1 à 4
 // @param {string} discCode - code discipline (CV, SH, SL, LP, BB, HB, VB, Gym, SC)
 function getCompLabel(index, discCode) {
+    // SC (Sport.Co) est personnalisable par l'utilisateur (onglet Settings >
+    // APS additionnel) : on lit la config live plutôt qu'un libellé fixe.
+    if (discCode === 'SC') {
+        const cfg = appSettings.sprtCo || SPRTCO_DEFAULTS;
+        const scLabels = { 1: cfg.e1 || SPRTCO_DEFAULTS.e1, 2: cfg.e2 || SPRTCO_DEFAULTS.e2, 3: cfg.e3 || SPRTCO_DEFAULTS.e3, 4: cfg.e4 || SPRTCO_DEFAULTS.e4 };
+        return scLabels[index] || `Critère ${index}`;
+    }
     const labels = {
         'CV': { 1: 'Installation', 2: 'Départ', 3: 'Redressement', 4: 'Couloir' },
         'SH': { 1: 'Course d\'élan', 2: 'Appel', 3: 'Franchissement', 4: 'Réception' },
@@ -5317,7 +5537,6 @@ function getCompLabel(index, discCode) {
         'HB': { 1: 'Déplacement', 2: 'Passes', 3: 'Dribble', 4: 'Tirs' },
         'VB': { 1: 'Réception', 2: 'Passes', 3: 'Attaque', 4: 'Service' },
         'Gym': { 1: 'Composition', 2: 'Exécution' },
-        'SC': { 1: 'Element 1', 2: 'Element 2', 3: 'Element 3', 4: 'Element 4' },
     };
     const discLabels = labels[discCode] || {};
     return discLabels[index] || `Critère ${index}`;
@@ -5343,6 +5562,7 @@ async function buildCycleObservationPage() {
 
 // ── Impression du modèle OB (grille d'observation) en PDF ─────────────────────
 function printCycleObservation() {
+    if (!currentClass || !currentDisc) { alert("Sélectionnez d'abord une classe et une discipline."); return; }
     buildCycleObservationPage()
         .then(html => printAsPDF(html))
         .catch(e => alert("Erreur chargement modèle d'observation : " + e.message));
@@ -6991,7 +7211,7 @@ function _generatePPGStudentRow(student, num) {
     const souplAssis = ppg.souplAssis || '';
     const souplDebout = ppg.souplDebout || '';
 
-    return `<tr>
+    return `<tr style="height:18px; min-height:18px;">
         <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${num}</td>
         <td style="font-weight:bold; font-size:8pt; padding-left:2px;">${student.nom}</td>
         <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${student.index || '?'}</td>
@@ -7022,14 +7242,14 @@ function _generateEmptyPPGStudentRow(num) {
     // Le nombre de colonnes est fixe : 22 colonnes (cf. template)
     // On crée 22 cellules vides (ou avec un espace)
     const emptyCells = Array(22).fill('<td style="text-align:center; font-size:6.5pt;"></td>').join('');
-    return `<tr>
+    return `<tr style="height:18px; min-height:18px;">
         <td style="text-align:center; font-weight:bold; font-size:6.5pt;">${num}</td>
         ${emptyCells}
     </tr>`;
 }
 
 // Fonction de construction de la page (asynchrone)
-const PPG_LINES_PER_PAGE = 60; // Ajustez selon vos besoins (ex: 35, 40, 45)
+const PPG_LINES_PER_PAGE = 50; // Ajustez selon vos besoins (ex: 35, 40, 45)
 
 async function buildPPGTestsPage() {
     let tplGlobal, tplPage;
@@ -7054,25 +7274,40 @@ async function buildPPGTestsPage() {
     tr.header-row { height: 2.5em; }   /* ← SEULEMENT pour les en-têtes */
     .page-break { page-break-after: always; }
     @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } table { page-break-inside: avoid; } }
+    @media print {
+    .ppg-table tbody tr,
+    #ppg-print-table tbody tr {
+        height: 18px !important; /* Ajustez selon vos besoins */
+        min-height: 18px !important;
+    }
+    
+    .ppg-table td,
+    #ppg-print-table td {
+        padding: 2px 2px !important;
+        vertical-align: middle !important;
+    } }
 </style>
 </head>
 <body>{{PAGES}}</body>
 </html>`;
         tplPage = `<table>
   <colgroup>
-      <col style="width:4%"><col style="width:25%"><col style="width:3%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:3%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%">
+      <col style="width:18px"><col style="width:25%"><col style="width: 15px;"><col style="width: 18px;"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:3%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:5%">
   </colgroup>
   <tbody>
     <tr><td colspan="2" style="text-align:center;font-weight:bold;font-size:8pt;">{{NIVEAU}}</td><td colspan="12" style="text-align:center;font-weight:bold;font-size:8pt;">PPG &amp; Tests physiques-Anthropométrie</td><td colspan="2" style="text-align: right;font-weight:bold;font-size:7pt;">AS:</td><td colspan="6" style="text-align:center;font-weight:bold;font-size:7pt;">{{AS}}</td></tr>
-    <tr><td rowspan="5" style="text-align:center;font-weight:bold;font-size:7pt;">N°</td><td rowspan="4" style="text-align:center;font-weight:bold;font-size:8pt;">{{CLASSE}}</td><td colspan="5" style="text-align:center;font-weight:bold;font-size:7pt;">Observations</td><td colspan="7" style="text-align:right;font-weight:bold;font-size:7pt;">Longueur de piste:</td><td colspan="2" style="text-align:center;font-weight:bold;font-size:7pt;">{{PISTE}} m</td><td colspan="6" style="text-align:center;font-weight:bold;font-size:7pt;">Assiduité</td></tr>
+    <tr><td rowspan="5" style="text-align:center;font-weight:bold;font-size:5pt;">N°</td><td rowspan="4" style="text-align:center;font-weight:bold;font-size:8pt;">{{CLASSE}}</td><td colspan="5" style="text-align:center;font-weight:bold;font-size:7pt;">Observations</td><td colspan="7" style="text-align:right;font-weight:bold;font-size:7pt;">Longueur de piste:</td><td colspan="2" style="text-align:center;font-weight:bold;font-size:7pt;">{{PISTE}} m</td><td colspan="6" style="text-align:center;font-weight:bold;font-size:7pt;">Assiduité</td></tr>
     <tr><td style="text-align:center;font-weight:bold;font-size:7pt;">D</td><td style="text-align:center;font-weight:bold;font-size:7pt;">{{TOTD}}</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Poids (Kg)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Taille (m)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">BPM (repos)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Détente Vrtcl. (cm)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Détente Hrztl. (cm)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Navette (Palier)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Grp. Physiologique</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Sprint 30m (s)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Equilibre (s)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Lnc MedBall (3kg)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Soupls. Assis (cm)</td><td rowspan="4" style="text-align:center;font-size:6pt;" class="vertical-text">Soupls. Debout (cm)</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S1</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S2</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S3</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S4</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S5</td><td style="text-align:center;font-weight:bold;font-size:6pt;">S6</td></tr>
     <tr><td style="text-align:center;font-weight:bold;font-size:7pt;">G</td><td style="text-align:center;font-weight:bold;font-size:7pt;">{{TOTG}}</td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td><td rowspan="3" style="text-align:center;"></td></tr>
     <tr><td style="text-align:center;font-weight:bold;font-size:7pt;">F</td><td style="text-align:center;font-weight:bold;font-size:7pt;">{{TOTF}}</td></tr>
-    <tr><td style="font-weight:bold;font-size:7pt;">Nom & Prénom</td><td style="text-align:center;font-weight:bold;font-size:7pt;">Sx</td><td style="text-align:center;font-weight:bold;font-size:7pt;">Âge</td></tr>
+    <tr><td style="font-weight:bold;font-size:7pt;">Nom & Prénom</td><td style="text-align:center;font-weight:bold;font-size:5pt;">Sx</td><td style="text-align:center;font-weight:bold;font-size:5pt;">Âge</td></tr>
     {{ELEV_ROWS}}
   </tbody>
 </table>
-<p style="font-size:10px; color:#888; margin-top:4px;text-align:right;">©Taoufik_2026.</p>
+<div style="display: flex; justify-content: space-between; font-size: 10px; color: #888; margin-top: 4px;">
+  <p style="margin: 0;">SmartEPS_2026.</p>
+  <p style="margin: 0;">©Taoufik_2026.</p>
+</div>
 `;
     }
 
@@ -7212,7 +7447,12 @@ function renderObservationGrid() {
         return;
     }
 
-    title.innerText = `${config.title} (${currentClass})`;
+    let displayName = config.title;
+    if (currentDisc === 'Sport.Co') {
+        const apsName = appSettings.sprtCo?.aps || SPRTCO_DEFAULTS.aps;
+        displayName = `Observation - ${apsName}`;
+    }
+    title.innerText = `${displayName} (${currentClass})`;
     const students = classesDB[currentClass].students;
     let html = `<table><thead>`;
 
